@@ -32,7 +32,12 @@ def load_web_auth_config() -> WebAuthConfig | None:
 
 def install_owner_auth(server: Flask) -> WebAuthConfig | None:
     config = load_web_auth_config()
-    server.wsgi_app = ProxyFix(server.wsgi_app, x_for=1, x_proto=1, x_host=1)  # type: ignore[method-assign]
+    server.wsgi_app = ProxyFix(  # type: ignore[method-assign]
+        server.wsgi_app,
+        x_for=1,
+        x_proto=1,
+        x_host=1,
+    )
     if config is None:
         return None
 
