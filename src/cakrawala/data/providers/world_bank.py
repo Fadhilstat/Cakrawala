@@ -5,7 +5,6 @@ from cakrawala.data.provenance import build_provenance
 from cakrawala.data.providers.base import ProviderResult
 from cakrawala.data.quality import require_sequence
 
-
 BASE_URL = "https://api.worldbank.org/v2"
 
 
