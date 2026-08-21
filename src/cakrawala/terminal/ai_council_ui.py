@@ -23,7 +23,9 @@ def render_ai_council() -> None:
     try:
         brief = load_council_brief()
     except Exception as exc:
-        st.warning("AI brief belum dapat divalidasi. Terminal tetap memakai evidence deterministik.")
+        st.warning(
+            "AI brief belum dapat divalidasi. Terminal tetap memakai evidence deterministik."
+        )
         st.caption(f"Status teknis: {type(exc).__name__}")
         return
 
