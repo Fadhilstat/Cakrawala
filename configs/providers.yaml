@@ -36,6 +36,14 @@ providers:
     content_types: [application/json, text/json]
     max_bytes: 2097152
     attribution: Binance public USD-M futures market data
+  ecb_fx_reference_rates:
+    enabled: true
+    base_url: https://www.ecb.europa.eu
+    path: /stats/eurofxref/eurofxref-hist-90d.xml
+    allowed_hosts: [www.ecb.europa.eu]
+    content_types: [text/xml, application/xml]
+    max_bytes: 2097152
+    attribution: European Central Bank
   cftc_tff:
     enabled: true
     base_url: https://publicreporting.cftc.gov
