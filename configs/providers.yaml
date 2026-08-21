@@ -92,3 +92,11 @@ providers:
     content_types: [text/xml, application/xml, application/rss+xml, application/rdf+xml]
     max_bytes: 2097152
     attribution: Bank for International Settlements
+  ecb_news:
+    enabled: true
+    base_url: https://www.ecb.europa.eu
+    path: /rss/press.html
+    allowed_hosts: [www.ecb.europa.eu]
+    content_types: [text/xml, application/xml, application/rss+xml]
+    max_bytes: 2097152
+    attribution: European Central Bank
