@@ -8,7 +8,6 @@ from cakrawala.data.http import HttpPolicy, get_json
 from cakrawala.data.provenance import build_provenance
 from cakrawala.data.providers.base import ProviderResult
 
-
 BASE_URL = "https://fapi.binance.com"
 _ALLOWED_PERIODS = {"5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "1d"}
 
@@ -149,9 +148,11 @@ def fetch_futures_positioning(symbol: str = "BTCUSDT") -> ProviderResult:
         next_funding_time=next_funding,
         timestamp=_timestamp(ratio_row["timestamp"]),
     )
-    raw = ratio.provenance.sha256.encode("ascii") + open_interest.provenance.sha256.encode(
-        "ascii"
-    ) + premium.provenance.sha256.encode("ascii")
+    raw = (
+        ratio.provenance.sha256.encode("ascii")
+        + open_interest.provenance.sha256.encode("ascii")
+        + premium.provenance.sha256.encode("ascii")
+    )
     return ProviderResult(
         provider="binance_futures_context",
         data={
