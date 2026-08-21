@@ -7,7 +7,19 @@ import yaml
 
 
 def project_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    source_root = Path(__file__).resolve().parents[2]
+    if (source_root / "configs").is_dir():
+        return source_root
+
+    installed_root = Path(__file__).resolve().parents[1]
+    if (installed_root / "configs").is_dir():
+        return installed_root
+
+    working_root = Path.cwd()
+    if (working_root / "configs").is_dir():
+        return working_root
+
+    raise FileNotFoundError("Cakrawala runtime resources are unavailable")
 
 
 def load_yaml(relative_path: str) -> dict[str, Any]:

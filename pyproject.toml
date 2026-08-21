@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cakrawala-intelligence-terminal"
-version = "0.2.0"
+version = "0.2.1"
 description = "Open-data intelligence terminal for public evidence and owner-only research workflows."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -21,6 +21,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+  "build>=1.2,<2",
   "pytest>=8.3,<10",
   "ruff>=0.8,<1",
   "mypy>=1.13,<2",
@@ -34,7 +35,14 @@ models = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["src", "."]
+include = ["cakrawala*", "app*", "configs*", "data*"]
+exclude = ["tests*", "api*", "migrations*", "docs*", "scripts*"]
+
+[tool.setuptools.package-data]
+app = ["assets/*.css"]
+configs = ["*.yaml"]
+"data.ai_briefs" = ["*.json"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src", "."]
