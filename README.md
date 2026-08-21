@@ -7,56 +7,161 @@ and risk evidence without pretending that one indicator can explain the whole ma
 as a public information product and an owner-only research workspace, not as an automatic profit
 machine.
 
-Current fallback app: `https://cakrawala-terminal.streamlit.app`
+**Live Dash app:** `https://cakrawala-intelligence-native.vercel.app`
 
-The primary web presentation is being migrated to **Plotly Dash on Render**. Streamlit remains online
-as a fallback until the Render deployment passes live smoke tests. No Render production URL is
-claimed before that deployment is actually provisioned and verified.
+**Streamlit fallback:** `https://cakrawala-terminal.streamlit.app`
 
-## Trading research workflow
+The primary public presentation now runs on Plotly Dash through Vercel's Python runtime. The
+production app uses Python 3.12 and a native WSGI entrypoint. Streamlit remains available as a
+fallback while the project continues to mature.
 
-The terminal follows a practical sequence: **context -> plan -> risk gate -> execution readiness ->
-review -> improve**.
+## Why this project exists
 
-### Public research workspaces
+Market decisions are often made from fragmented information: price action in one tab, macro data in
+another, positioning somewhere else, and news without clear context. Cakrawala brings those pieces
+into one evidence-first workflow while keeping the limits visible.
 
-- **Overview**: source health, BTC movement, momentum, volatility, futures crowding, funding,
-  inflation, and BMKG context.
-- **News**: official central-bank and policy headlines with transparent reading-priority evidence.
+The working sequence is:
+
+**context -> plan -> risk gate -> execution readiness -> review -> improve**
+
+Public users can explore the evidence layer without private credentials. Personal Mode is designed
+for the owner and stays closed until its own authentication and private storage are configured.
+
+## Public research workspaces
+
+- **Overview**: source health, BTC movement, momentum, realized volatility, futures crowding,
+  funding, Indonesia inflation context, and BMKG earthquake evidence.
+- **News**: official central-bank and policy headlines with a transparent reading-priority layer.
 - **Positioning**: Binance public futures crowding plus CFTC institutional TFF positioning. Crowd
-  and institutional horizons stay separate.
+  and institutional horizons remain separate.
 - **Market**: BTC market structure, realized risk, and ECB currency-strength context.
 - **Macro**: Indonesia macro history plus scheduled BLS event risk.
 - **AI Council**: a daily multi-role ChatGPT research brief with confidence, disagreements, risk
   flags, freshness, and source links. It cannot create or replace deterministic trade signals.
 - **Risk & Tools**: deterministic position sizing, expectancy, and execution-readiness state.
-- **Tool Radar**: weekly primary-source review of actively maintained trading frameworks.
+- **Tool Radar**: primary-source review of actively maintained trading frameworks and architecture.
 - **Personal**: owner-only portfolio, plans, journal, and playbook after OIDC and private storage are
   configured.
 
-The Dash navigation deliberately groups related features into fewer workspaces than the Streamlit
-prototype. The goal is a calmer professional terminal rather than a long list of disconnected pages.
+The Dash navigation deliberately groups related features into a smaller number of workspaces. The
+objective is a calmer research terminal, not a long collection of disconnected widgets.
 
-## Framework migration
+## Architecture
 
-The research and trading logic does not belong to a UI framework. The migration introduces:
+The research and trading logic does not belong to a UI framework. Public data access, intelligence,
+risk logic, and owner authorization are kept outside presentation code where possible.
 
 ```text
-app/dash_app.py                 Dash production entrypoint
+main.py                         native Vercel WSGI bridge
+.python-version                 Python 3.12 runtime pin
+app/dash_app.py                 primary Dash application
 app/assets/terminal.css         responsive terminal presentation
-src/cakrawala/web/              framework-neutral public evidence, cache, and OIDC boundary
-src/cakrawala/intelligence/     research, risk, model, AI brief, and execution readiness policy
-render.yaml                     Render Free Web Service blueprint
+app/streamlit_app.py            fallback Streamlit entrypoint
+src/cakrawala/data/             provider adapters and provenance
+src/cakrawala/web/              public evidence service, cache, and OIDC boundary
+src/cakrawala/intelligence/     research, risk, model, AI brief, and readiness policy
+src/cakrawala/personal/         owner-only private storage access
+configs/                        providers, models, signals, schedules, and tool radar
+data/ai_briefs/                 validated scheduled AI research brief
+migrations/                     public and private database migrations
+tests/                          regression, runtime, security, and data-boundary tests
+.github/workflows/              CI and source-health automation
+vercel.json                     Vercel function limits
+render.yaml                     optional Render deployment blueprint
 ```
 
-`src/cakrawala/web/public_service.py` replaces Streamlit-specific caching in the Dash path with a
-small bounded process-local cache for public evidence. Personal data is never stored in that cache.
-The original Streamlit presentation remains available during migration but is no longer the target
-architecture.
+`src/cakrawala/web/public_service.py` is framework-neutral. Dash uses a small bounded process-local
+cache for public evidence. Private owner rows never enter that shared cache.
 
-## Execution boundary
+The Python wheel also contains the Dash app, CSS, provider configuration, and AI brief resource.
+CI installs that wheel away from the repository checkout and smoke-tests it from `/tmp`, which helps
+catch packaging failures before deployment.
 
-Cakrawala separates research readiness from execution. The deterministic execution guard can return:
+## Deployment model
+
+The production deployment is intentionally simple and has no mandatory paid hosting component for
+the portfolio MVP.
+
+```text
+GitHub main
+   |
+   +-- CI
+   |    compile
+   |    no-em-dash check
+   |    Streamlit fallback import
+   |    Dash health smoke test
+   |    native Vercel WSGI smoke test
+   |    deployment wheel validation
+   |    Ruff
+   |    pytest
+   |
+   v
+Vercel Python 3.12
+   |
+   +-- main:app
+   +-- Plotly Dash
+   +-- /healthz
+   +-- public evidence providers
+```
+
+The current production app has been verified with:
+
+- public root page returning HTTP 200;
+- `/healthz` returning HTTP 200 and JSON status `ok`;
+- Dash layout endpoint returning HTTP 200;
+- Dash dependency endpoint returning HTTP 200;
+- bundled terminal CSS returning HTTP 200;
+- no clustered runtime errors after the live smoke tests.
+
+The earlier Render path remains in the repository as an optional secondary deployment blueprint.
+The connected Render workspace required payment information when a free web service was created
+through its API, so Cakrawala did not add a card or create a paid Render resource.
+
+## Free and traceable data path
+
+The public experience is designed around interfaces that do not require a paid subscription for the
+current portfolio workflow.
+
+| Evidence | Provider | Public interface |
+| --- | --- | --- |
+| Indonesia statistics | BPS | WebAPI, optional server-side key |
+| Weather and earthquakes | BMKG | Official open JSON |
+| Global macro | World Bank | Indicators API V2 |
+| Macro series | FRED | Optional server-side API key |
+| Spot market structure | Binance | Public market-data API |
+| Futures crowding | Binance USD-M Futures | Public positioning, open-interest, and funding endpoints |
+| Currency reference context | European Central Bank | Official working-day FX reference-rate history |
+| Institutional positioning | CFTC | Public TFF Futures-Only dataset |
+| Scheduled U.S. event risk | BLS | Official iCalendar release schedule |
+| Policy and central-bank news | Federal Reserve, BIS, ECB | Official feeds |
+
+Every external response is treated as untrusted at the network boundary. Provider adapters use the
+controls that fit each source, including HTTPS, host allowlists, bounded timeouts and retries,
+response-size limits, content-type checks, schema validation, provenance, and explicit failure
+handling.
+
+An unavailable provider is shown as unavailable. The terminal does not create synthetic replacement
+data to make a panel look healthy.
+
+ECB reference rates are reference information and are not presented as executable FX prices. COT is
+weekly positioning evidence, not live institutional flow.
+
+See `docs/sources.md` for source details and evidence policy.
+
+## Evidence before signal
+
+Cakrawala separates four layers that should not be confused with one another:
+
+1. **Descriptive evidence** such as price, volatility, crowding, COT, and currency context.
+2. **Research bias** that summarizes evidence without becoming an order instruction.
+3. **Model evidence** that must pass health, point-in-time, and validation gates.
+4. **Deterministic signal policy** that is the only layer allowed to return BUY, HOLD, AVOID, or
+   NO SIGNAL where that workflow is enabled.
+
+Missing, stale, rejected, or unhealthy evidence cannot be upgraded into a trade by an LLM.
+
+The execution-readiness guard can return:
 
 - `BLOCKED`
 - `OBSERVE`
@@ -67,124 +172,103 @@ Cakrawala separates research readiness from execution. The deterministic executi
 gates are satisfied. The public application has no route that sends a real-money trade.
 
 An emergency-stop state overrides every other readiness condition. A future broker or exchange
-adapter must pass a separate paper-trading, security, credential, audit, and licensing review before
-it can be considered for owner-only use.
-
-## Trader repository study
-
-Cakrawala studies public trading projects to learn architecture and failure modes without copying
-strategies or source indiscriminately. Current references include:
-
-- **Nocturna Trading System**: MIT, useful for event-driven state, risk-manager separation, emergency
-  stop, and explicit order-state concepts.
-- **NautilusTrader**: LGPL-3.0, architecture benchmark for event-driven modularity and adapters.
-- **Freqtrade**: GPL-3.0, architecture benchmark for strategy, data, backtest, dry-run, and runtime
-  separation.
-- **Hummingbot**: Apache-2.0, reference for connector isolation and execution-service boundaries.
-
-GPL and LGPL projects are treated as architecture references in Cakrawala's MIT core unless a future
-integration explicitly accepts and documents the corresponding license obligations. See
-`docs/trader-repository-study.md` for the detailed reuse policy.
-
-## Free and traceable data path
-
-The public experience is designed around interfaces that do not require a paid subscription:
-
-| Evidence | Provider | Public interface |
-| --- | --- | --- |
-| Indonesia statistics | BPS | WebAPI, optional server-side key |
-| Weather and earthquakes | BMKG | Official open JSON |
-| Global macro | World Bank | Indicators API V2 |
-| Macro series | FRED | Optional server-side API key |
-| Spot market structure | Binance | Public market-data-only API |
-| Futures crowding | Binance USD-M Futures | Public long-short, open-interest, and funding endpoints |
-| Currency reference context | European Central Bank | Official working-day FX reference-rate history |
-| Institutional positioning | CFTC | Public TFF Futures-Only dataset |
-| Scheduled U.S. event risk | BLS | Official iCalendar release schedule |
-| Policy and central-bank news | Federal Reserve, BIS, ECB | Official feeds |
-
-Source interfaces were rechecked on 21 August 2026. See `docs/sources.md` for endpoint, attribution,
-and evidence-policy details.
-
-ECB reference rates are reference information and are not presented as executable FX prices.
+adapter must pass separate paper-trading, security, credential, audit, and licensing review before
+owner-only execution could even be considered.
 
 ## AI Research Council
 
 Cakrawala uses ChatGPT as an external scheduled research layer rather than embedding a paid OpenAI
-API call in each web session. A daily task reviews live primary sources from seven separate analyst
-roles and writes one validated JSON brief into the repository.
+API call in each public page view.
 
-The web application reads `data/ai_briefs/latest.json`. The schema restricts the council to `RISK ON`,
-`CAUTIOUS`, `RISK OFF`, `MIXED`, or `INSUFFICIENT EVIDENCE`. It cannot publish BUY, SELL, LONG,
-SHORT, target prices, or order instructions. A brief older than 36 hours is marked stale.
+The council separates these roles:
 
-This avoids an OpenAI API credential in the web application and avoids per-page OpenAI API usage.
-ChatGPT product-plan availability is separate from OpenAI API billing. See
-`docs/ai-research-council.md` for the role and security model.
+- News Analyst
+- Macro Analyst
+- Market Analyst
+- Risk Analyst
+- Quant and Model Steward
+- Indonesia Analyst
+- Chief Research Editor
 
-## Evidence before signal
+The web application reads `data/ai_briefs/latest.json`. The schema restricts the research stance to:
 
-Every external response is untrusted at the network boundary. Cakrawala uses HTTPS-only adapters,
-exact host allowlists, bounded timeouts and retries, response-size limits, content-type checks,
-provenance hashes, schema validation, and explicit failure handling.
+- `RISK ON`
+- `CAUTIOUS`
+- `RISK OFF`
+- `MIXED`
+- `INSUFFICIENT EVIDENCE`
 
-Public providers are isolated. An optional source failure is displayed as unavailable rather than
-allowed to crash the terminal or trigger synthetic replacement data.
+The council cannot publish BUY, SELL, LONG, SHORT, target prices, or order instructions. A brief
+older than 36 hours is marked stale. Weak verification must become `INSUFFICIENT EVIDENCE` rather
+than a guessed conclusion.
 
-The terminal distinguishes:
+This design keeps OpenAI API credentials out of the public web application. ChatGPT product-plan
+availability is separate from OpenAI API billing. See `docs/ai-research-council.md` for the full
+boundary.
 
-1. **descriptive evidence**, such as price, volatility, crowding, COT, and currency context;
-2. **research bias**, which is explainable context and not a trade instruction;
-3. **model evidence**, which must pass walk-forward, point-in-time, health, and benchmark gates;
-4. **deterministic signal policy**, which is the only layer allowed to return BUY, HOLD, AVOID, or
-   NO SIGNAL.
+## Trader repository study
 
-Missing, stale, rejected, or unhealthy evidence cannot be upgraded into a trade by an LLM.
+Cakrawala studies public trading projects to learn architecture and failure modes without copying
+strategies or source indiscriminately.
+
+Current references include:
+
+- **Nocturna Trading System**: MIT. Useful reference for event-driven state, risk-manager separation,
+  emergency stop, and explicit order-state concepts.
+- **NautilusTrader**: LGPL-3.0. Architecture benchmark for event-driven modularity and adapters.
+- **Freqtrade**: GPL-3.0. Architecture benchmark for strategy, data, backtest, dry-run, and runtime
+  separation.
+- **Hummingbot**: Apache-2.0. Reference for connector isolation and execution-service boundaries.
+
+GPL and LGPL projects are treated as architecture references in Cakrawala's MIT core unless a future
+integration explicitly accepts and documents the corresponding license obligations.
+
+A weekly research process reviews maintenance activity, license, security risk, operational risk,
+and useful architecture patterns. A project can be classified as observe, sandbox candidate, or
+exclude. It cannot install itself into production or override Cakrawala's risk policy.
+
+See `docs/trader-repository-study.md` and `configs/tool_radar.yaml`.
 
 ## Metavulus reference boundary
 
 Cakrawala studies useful workflow ideas visible in public trading products, including Metavulus, but
 does not copy proprietary research, paid datasets, private signals, scoring logic, trade ideas,
-branding, screenshots, or visual assets. Free equivalents are independently implemented from public
-or official sources. See `docs/trading-feature-map.md`.
+branding, screenshots, or visual assets. Free equivalents are implemented independently from public
+or official sources.
 
-Cakrawala does not fabricate rate-cut probabilities merely to imitate another terminal. Such a panel
-should be added only when free futures or OIS inputs, timing, methodology, and freshness can be
-reproduced defensibly.
+Cakrawala also does not fabricate rate-cut probabilities merely to imitate another terminal. Such a
+panel should exist only when free futures or OIS inputs, methodology, meeting mapping, and freshness
+can be reproduced defensibly.
 
-## Bot and architecture research
+See `docs/trading-feature-map.md`.
 
-A weekly research process reviews current open trading bots, execution frameworks, architecture, and
-research tools from primary sources. Candidates are classified as observe, sandbox candidate, or
-exclude.
+## Public and Personal boundary
 
-The process cannot:
+Public Mode is anonymous and uses public research state only.
 
-- install a bot automatically;
-- copy exchange credentials;
-- enable withdrawal access;
-- merge an unreviewed dependency change;
-- copy GPL or LGPL source into the MIT core automatically;
-- bypass model-health, freshness, risk, authorization, or signal-policy gates;
-- send a real-money order because a repository or backtest looks promising.
-
-## Repository map
+Personal Mode remains fail-closed until all owner-side prerequisites are configured:
 
 ```text
-app/                         Dash target and Streamlit fallback entrypoints
-configs/                     providers, schedules, models, signals, tool radar
-data/ai_briefs/              validated scheduled AI research brief
-migrations/                  raw, public, and private PostgreSQL schemas
-src/cakrawala/data/          secure provider adapters and provenance
-src/cakrawala/intelligence/  news, risk, AI brief, model and readiness policies
-src/cakrawala/personal/      owner-only database access
-src/cakrawala/web/           framework-neutral public services and Dash auth boundary
-src/cakrawala/terminal/      Streamlit fallback presentation
-tests/                       regression, runtime, data-boundary, and security tests
-docs/                        architecture, source, AI, trader-study, and deployment notes
-.github/workflows/           CI and source-health automation
-render.yaml                  Render Free deployment blueprint
+GOOGLE_OIDC_CLIENT_ID
+GOOGLE_OIDC_CLIENT_SECRET
+GOOGLE_OWNER_SUB
+WEB_SESSION_SECRET
+DATABASE_PERSONAL_URL
 ```
+
+Authorization uses the stable OIDC `sub`, not an email address. Private storage uses a separate
+PostgreSQL connection. Portfolio history, trade plans, journal entries, and playbook entries stay
+outside shared public caching. Historical research records are append-only at the database layer.
+
+Personal Mode still requires external provisioning and the personal migrations in order:
+
+```text
+migrations/personal/001_init.sql
+migrations/personal/002_research_workspace.sql
+migrations/personal/003_journal_review_fields.sql
+```
+
+No placeholder credential is committed to the repository.
 
 ## Local QA
 
@@ -193,10 +277,11 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install -e '.[dev]'
-python -m compileall -q src scripts app
+python -m compileall -q src scripts app api main.py
 python scripts/check_no_em_dash.py
 python -c "from cakrawala.terminal.enhanced_ui import run; assert callable(run)"
-python -c "from app.dash_app import server; assert server.test_client().get('/healthz').status_code == 200"
+python -c "from main import app; client=app.test_client(); assert client.get('/healthz').status_code == 200"
+python -m build --wheel
 ruff check .
 pytest
 ```
@@ -207,62 +292,50 @@ Run Dash locally:
 python app/dash_app.py
 ```
 
-Run the temporary Streamlit fallback:
+Run the Streamlit fallback:
 
 ```bash
+pip install -e '.[streamlit]'
 streamlit run app/streamlit_app.py
 ```
 
-## Public and Personal boundary
+## Automation
 
-Public Mode is anonymous and uses only public research state. Dash Personal Mode remains unavailable
-until Google OIDC and a stable owner `sub` are stored server-side. Authorization uses the OIDC `sub`,
-not email.
+Cakrawala currently uses several guardrailed scheduled workflows:
 
-The Dash environment variables are:
+- daily AI Research Council briefing;
+- weekly trading-framework and market-intelligence review;
+- repository source-health checks;
+- external production-health monitoring every six hours.
 
-```text
-GOOGLE_OIDC_CLIENT_ID
-GOOGLE_OIDC_CLIENT_SECRET
-GOOGLE_OWNER_SUB
-WEB_SESSION_SECRET
-DATABASE_PERSONAL_URL
-```
+The production-health watcher treats the Vercel Dash URL as primary and Streamlit as fallback. It
+checks app health, AI-brief freshness, and critical evidence availability, and only alerts on
+meaningful problems.
 
-Private storage uses a separate PostgreSQL connection. Portfolio history, trade plans, journal
-entries, and playbook entries remain outside shared public caching. Historical research records are
-append-only at the database layer.
-
-## Deployment
-
-The target no-mandatory-cost portfolio deployment uses GitHub, Render Free Web Service, and a
-separate persistent free PostgreSQL tier when Personal Mode is enabled. `render.yaml` defines the
-public Dash service with Gunicorn, `/healthz`, and deploy-after-checks behavior.
-
-Render becomes the primary portfolio URL only after the deployed Dash build passes the smoke-test
-checklist. Until then, Streamlit remains the fallback URL.
-
-See `docs/runbooks/render-deployment.md` for Render setup and `docs/runbooks/deployment.md` for the
-existing private-data boundary.
+Automation is not allowed to add paid infrastructure, expose secrets, install a trading bot directly
+into production, or override deterministic signal and risk policy.
 
 ## Limitations
 
 Cakrawala is a research system, not a guarantee of returns. Public APIs can become unavailable,
 provider schemas can change, historical relationships can fail, and execution conditions can differ
-from research assumptions. The BLS calendar does not cover every global macro event. COT is weekly
-evidence, not live institutional flow. The current market breadth is intentionally small and should
-not be treated as full cross-asset coverage.
+from research assumptions.
 
-Render's free plan can have cold starts and its local filesystem is not durable storage. Current
-free-plan limits should be rechecked before each major deployment.
+The current public terminal still has practical limitations:
 
-The AI Research Council is a research summary layer. Scheduled task availability depends on the
-user's ChatGPT product plan, and the project does not claim that OpenAI API usage is free.
+- the BLS calendar does not cover every global macro event;
+- COT is weekly evidence;
+- the market breadth universe is intentionally small;
+- Personal Mode is not production-enabled until owner OIDC and private storage are provisioned;
+- there is no automatic real-money order execution;
+- AI Council analysis is a research summary layer, not a trading engine;
+- free hosting and public-provider limits can change, so they should be rechecked before major
+  releases.
 
 BMKG attribution must remain visible wherever BMKG data is displayed.
 
-This product uses the FRED API but is not endorsed or certified by the Federal Reserve Bank of St.
-Louis.
+This product uses the FRED API where configured but is not endorsed or certified by the Federal
+Reserve Bank of St. Louis.
 
 ## License
 
