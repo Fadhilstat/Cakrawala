@@ -1,6 +1,11 @@
 name: Normalize release source
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/normalize-release-source.yml
   push:
     branches:
       - chore/normalize-release-source
@@ -16,14 +21,16 @@ concurrency:
 
 jobs:
   normalize:
+    if: github.event_name == 'push' || github.head_ref == 'chore/normalize-release-source'
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
-      - name: Check out branch
+      - name: Check out source branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Rebuild verified release archive
         shell: bash
