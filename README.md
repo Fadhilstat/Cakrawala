@@ -21,6 +21,10 @@ review -> improve**.
 
 - **Overview**: source health, BTC movement, momentum, volatility, futures crowding, news watch,
   inflation, and BMKG context.
+- **AI Research Council**: a daily multi-role ChatGPT brief with separate news, macro, market, risk,
+  quant/model, Indonesia, and chief-editor views. The brief shows confidence, consensus,
+  disagreements, risk flags, follow-up checks, freshness, and source links. It cannot create or
+  replace deterministic trade signals.
 - **News & Research**: searchable official Federal Reserve, BIS, and ECB headlines with transparent
   reading-priority tags. One failed feed does not hide the healthy feeds. Attention is not a
   price-direction forecast.
@@ -79,6 +83,21 @@ and evidence-policy details.
 ECB reference rates are used for information and relative currency context only. They are not
 presented as executable FX prices.
 
+## AI Research Council
+
+Cakrawala uses ChatGPT as an external scheduled research layer rather than embedding a paid OpenAI
+API call inside every Streamlit session. A daily task reviews live primary sources from seven
+separate analyst roles and writes one validated JSON brief into the repository.
+
+The web app reads only `data/ai_briefs/latest.json`. The schema restricts the council to research
+stances such as `RISK ON`, `CAUTIOUS`, `RISK OFF`, `MIXED`, or `INSUFFICIENT EVIDENCE`. It cannot
+publish BUY, SELL, LONG, SHORT, target prices, or order instructions. A brief older than 36 hours is
+shown as stale rather than current research.
+
+This design avoids storing an OpenAI API key in Streamlit and avoids per-page OpenAI API usage. It
+uses the user's existing ChatGPT scheduled-task capability, whose product-plan availability is
+separate from OpenAI API billing. See `docs/ai-research-council.md` for the role and security model.
+
 ## Evidence before signal
 
 Every external response is untrusted at the network boundary. Cakrawala uses HTTPS-only adapters,
@@ -132,14 +151,15 @@ This keeps the project current without turning software discovery into a supply-
 ```text
 app/                         Streamlit entrypoint
 configs/                     providers, schedules, models, signals, tool radar
+data/ai_briefs/              validated scheduled AI research brief
 migrations/                  raw, public, and private PostgreSQL schemas
 src/cakrawala/data/          secure provider adapters and provenance
-src/cakrawala/intelligence/  news, risk, trader tools, sessions, model and signal policy
+src/cakrawala/intelligence/  news, risk, trader tools, AI brief validation, model and signal policy
 src/cakrawala/personal/      owner-only database access
 src/cakrawala/terminal/      public and private interface composition
 src/cakrawala/observability/ source health
 tests/                       regression, data-boundary, and security tests
-docs/                        architecture, sources, feature map, and runbooks
+docs/                        architecture, sources, feature map, AI council, and runbooks
 .github/workflows/           CI and source-health automation
 ```
 
@@ -207,6 +227,9 @@ exchange holiday calendar. The BLS calendar covers scheduled BLS releases, not e
 event. COT is weekly evidence, not a live positioning feed. The current correlation and regime desk
 uses a small public crypto universe and should be interpreted as context rather than full cross-asset
 coverage.
+
+The AI Research Council is a research summary layer. Scheduled task availability depends on the
+user's ChatGPT product plan, and the project does not claim that OpenAI API usage is free.
 
 BMKG attribution must remain visible wherever BMKG data is displayed.
 

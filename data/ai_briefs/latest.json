@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-08-21T11:20:00Z",
+  "as_of": "2026-08-21",
+  "status": "waiting_for_first_scheduled_brief",
+  "source_count": 0,
+  "roles": [],
+  "synthesis": {
+    "headline": "AI Research Council belum menerbitkan brief pertama.",
+    "research_stance": "INSUFFICIENT EVIDENCE",
+    "consensus": [],
+    "disagreements": [],
+    "risk_flags": [],
+    "next_checks": [
+      "Tunggu scheduled research run pertama dan verifikasi semua sumber sebelum membuat ringkasan."
+    ],
+    "signal_policy_note": "Analisis ChatGPT tidak boleh membuat atau mengganti signal deterministik Cakrawala."
+  },
+  "citations": []
+}
