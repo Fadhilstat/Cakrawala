@@ -19,12 +19,6 @@ from cakrawala.intelligence.execution_guard import (
     assess_execution_readiness,
 )
 from cakrawala.intelligence.risk import build_position_plan, expectancy_r
-from cakrawala.intelligence.trader_tools import (
-    compound_projection,
-    pip_or_tick_value,
-    position_pnl,
-    prop_risk_budget,
-)
 from cakrawala.web.auth import install_owner_auth, owner_session_state
 from cakrawala.web.cache import PUBLIC_CACHE
 from cakrawala.web.public_service import (
@@ -58,7 +52,10 @@ def healthz() -> Any:
 
 
 def _metric(label: str, value: str, note: str = "") -> html.Div:
-    children: list[Any] = [html.Div(label, className="metric-label"), html.Div(value, className="metric-value")]
+    children: list[Any] = [
+        html.Div(label, className="metric-label"),
+        html.Div(value, className="metric-value"),
+    ]
     if note:
         children.append(html.Div(note, className="metric-note"))
     return html.Div(children, className="metric-card")
@@ -118,7 +115,9 @@ def render_overview() -> html.Div:
             _metric("Sources online", f"{healthy}/{total}"),
             _metric(
                 "BTC 1D",
-                _safe_number(market["latest"]["change_1d_pct"], "%") if market else "N/A",
+                _safe_number(market["latest"]["change_1d_pct"], "%")
+                if market
+                else "N/A",
             ),
             _metric("30D momentum", _safe_number(risk.get("momentum"), "%")),
             _metric("30D volatility", _safe_number(risk.get("volatility"), "%", 1)),
@@ -132,23 +131,44 @@ def render_overview() -> html.Div:
     if market:
         frame = market["frame"].tail(45)
         fig = px.line(frame, x="time", y="close")
-        fig.update_layout(template="plotly_dark", height=330, margin=dict(l=10, r=10, t=20, b=10))
+        fig.update_layout(
+            template="plotly_dark",
+            height=330,
+            margin=dict(l=10, r=10, t=20, b=10),
+        )
         market_panel = dcc.Graph(figure=fig, config={"displayModeBar": False})
     else:
         market_panel = _warning("Market evidence sedang tidak tersedia.")
 
     context: list[Any] = []
     if earthquake:
-        context.append(html.P(f"BMKG: M {earthquake.get('magnitude', 'N/A')} | {earthquake.get('region', 'N/A')}"))
+        context.append(
+            html.P(
+                f"BMKG: M {earthquake.get('magnitude', 'N/A')} | "
+                f"{earthquake.get('region', 'N/A')}"
+            )
+        )
     if inflation:
         latest = inflation["latest"]
-        context.append(html.P(f"Inflasi Indonesia: {latest['value']:.2f}% ({latest['year']})"))
+        context.append(
+            html.P(f"Inflasi Indonesia: {latest['value']:.2f}% ({latest['year']})")
+        )
     if snapshot["errors"]:
-        context.append(html.P("Sebagian source gagal. Terminal tidak menggantinya dengan data sintetis.", className="muted"))
+        context.append(
+            html.P(
+                "Sebagian source gagal. Terminal tidak menggantinya dengan data sintetis.",
+                className="muted",
+            )
+        )
 
     return html.Div(
         [
-            html.Div([html.P("COMMAND CENTER", className="eyebrow"), html.H2("Market and evidence pulse")]),
+            html.Div(
+                [
+                    html.P("COMMAND CENTER", className="eyebrow"),
+                    html.H2("Market and evidence pulse"),
+                ]
+            ),
             cards,
             html.Div(
                 [
@@ -179,29 +199,47 @@ def render_news() -> html.Div:
                 "URL": item.get("link", ""),
             }
         )
+    columns = []
+    if records:
+        columns = [
+            {
+                "name": key,
+                "id": key,
+                "presentation": "markdown" if key == "URL" else "input",
+            }
+            for key in records[0]
+        ]
     return html.Div(
         [
             html.P("NEWS INTELLIGENCE", className="eyebrow"),
             html.H2("Official headline watch"),
             html.P(
-                "Attention score membantu prioritas membaca. Ini bukan sentiment forecast dan bukan arah transaksi.",
+                "Attention score membantu prioritas membaca. Ini bukan sentiment forecast "
+                "dan bukan arah transaksi.",
                 className="muted",
             ),
             dash_table.DataTable(
                 data=records,
-                columns=[{"name": key, "id": key, "presentation": "markdown" if key == "URL" else "input"} for key in records[0]] if records else [],
+                columns=columns,
                 page_size=12,
                 sort_action="native",
                 filter_action="native",
                 style_table={"overflowX": "auto"},
-                style_cell={"textAlign": "left", "whiteSpace": "normal", "height": "auto"},
+                style_cell={
+                    "textAlign": "left",
+                    "whiteSpace": "normal",
+                    "height": "auto",
+                },
             ),
         ]
     )
 
 
 def render_positioning() -> html.Div:
-    children: list[Any] = [html.P("POSITIONING", className="eyebrow"), html.H2("Crowd and institutional context")]
+    children: list[Any] = [
+        html.P("POSITIONING", className="eyebrow"),
+        html.H2("Crowd and institutional context"),
+    ]
     try:
         futures = load_futures_context()
     except Exception as exc:
@@ -211,11 +249,26 @@ def render_positioning() -> html.Div:
         children.append(
             html.Div(
                 [
-                    _metric("Crowd long", _safe_number(float(latest["long_account"]) * 100, "%", 1)),
-                    _metric("Crowd short", _safe_number(float(latest["short_account"]) * 100, "%", 1)),
-                    _metric("Long/short ratio", _safe_number(float(latest["long_short_ratio"]), "", 2)),
-                    _metric("Open interest", _safe_number(float(latest["open_interest"]), "", 0)),
-                    _metric("Funding", _safe_number(float(latest["last_funding_rate"]) * 100, "%", 4)),
+                    _metric(
+                        "Crowd long",
+                        _safe_number(float(latest["long_account"]) * 100, "%", 1),
+                    ),
+                    _metric(
+                        "Crowd short",
+                        _safe_number(float(latest["short_account"]) * 100, "%", 1),
+                    ),
+                    _metric(
+                        "Long/short ratio",
+                        _safe_number(float(latest["long_short_ratio"]), "", 2),
+                    ),
+                    _metric(
+                        "Open interest",
+                        _safe_number(float(latest["open_interest"]), "", 0),
+                    ),
+                    _metric(
+                        "Funding",
+                        _safe_number(float(latest["last_funding_rate"]) * 100, "%", 4),
+                    ),
                 ],
                 className="metric-grid",
             )
@@ -239,8 +292,21 @@ def render_positioning() -> html.Div:
             )
             if column in frame.columns
         ]
-        children.append(_panel("Institutional COT", dash_table.DataTable(data=frame[columns].to_dict("records"), columns=[{"name": c.replace("_", " ").title(), "id": c} for c in columns], style_table={"overflowX": "auto"})))
-        children.append(html.P("COT adalah evidence mingguan, bukan live institutional flow.", className="muted"))
+        table = dash_table.DataTable(
+            data=frame[columns].to_dict("records"),
+            columns=[
+                {"name": column.replace("_", " ").title(), "id": column}
+                for column in columns
+            ],
+            style_table={"overflowX": "auto"},
+        )
+        children.append(_panel("Institutional COT", table))
+        children.append(
+            html.P(
+                "COT adalah evidence mingguan, bukan live institutional flow.",
+                className="muted",
+            )
+        )
     return html.Div(children)
 
 
@@ -262,15 +328,37 @@ def render_market() -> html.Div:
             )
         ]
     )
-    fig.update_layout(template="plotly_dark", height=500, xaxis_rangeslider_visible=False, margin=dict(l=10, r=10, t=20, b=10))
+    fig.update_layout(
+        template="plotly_dark",
+        height=500,
+        xaxis_rangeslider_visible=False,
+        margin=dict(l=10, r=10, t=20, b=10),
+    )
 
     try:
         strength = pd.DataFrame(load_currency_strength())
     except Exception:
         strength_component: Any = _warning("ECB currency strength sedang tidak tersedia.")
     else:
-        columns = [c for c in ("currency", "change_1d_pct", "change_5d_pct", "change_20d_pct", "as_of") if c in strength.columns]
-        strength_component = dash_table.DataTable(data=strength[columns].to_dict("records"), columns=[{"name": c.replace("_", " ").title(), "id": c} for c in columns], page_size=10)
+        columns = [
+            column
+            for column in (
+                "currency",
+                "change_1d_pct",
+                "change_5d_pct",
+                "change_20d_pct",
+                "as_of",
+            )
+            if column in strength.columns
+        ]
+        strength_component = dash_table.DataTable(
+            data=strength[columns].to_dict("records"),
+            columns=[
+                {"name": column.replace("_", " ").title(), "id": column}
+                for column in columns
+            ],
+            page_size=10,
+        )
 
     return html.Div(
         [
@@ -279,14 +367,23 @@ def render_market() -> html.Div:
             html.Div(
                 [
                     _metric("BTC close", _safe_number(market["latest"]["close"])),
-                    _metric("1D", _safe_number(market["latest"]["change_1d_pct"], "%")),
+                    _metric(
+                        "1D",
+                        _safe_number(market["latest"]["change_1d_pct"], "%"),
+                    ),
                     _metric("30D momentum", _safe_number(risk.get("momentum"), "%")),
-                    _metric("30D volatility", _safe_number(risk.get("volatility"), "%", 1)),
+                    _metric(
+                        "30D volatility",
+                        _safe_number(risk.get("volatility"), "%", 1),
+                    ),
                     _metric("Drawdown", _safe_number(risk.get("drawdown"), "%")),
                 ],
                 className="metric-grid",
             ),
-            _panel("BTC/USDT 90D", dcc.Graph(figure=fig, config={"displayModeBar": False})),
+            _panel(
+                "BTC/USDT 90D",
+                dcc.Graph(figure=fig, config={"displayModeBar": False}),
+            ),
             _panel(
                 "ECB currency strength",
                 strength_component,
@@ -308,29 +405,38 @@ def render_macro() -> html.Div:
         except Exception:
             continue
         for item in payload["observations"]:
-            rows.append({"Series": label, "Year": item["year"], "Value": item["value"]})
+            rows.append(
+                {"Series": label, "Year": item["year"], "Value": item["value"]}
+            )
 
     chart: Any = _warning("Macro history belum tersedia.")
     if rows:
         frame = pd.DataFrame(rows)
         pct = frame[frame["Series"].isin(["GDP growth", "Inflation"])]
         fig = px.line(pct, x="Year", y="Value", color="Series", markers=True)
-        fig.update_layout(template="plotly_dark", height=380, margin=dict(l=10, r=10, t=20, b=10))
+        fig.update_layout(
+            template="plotly_dark",
+            height=380,
+            margin=dict(l=10, r=10, t=20, b=10),
+        )
         chart = dcc.Graph(figure=fig, config={"displayModeBar": False})
 
     try:
         events = load_economic_calendar(14)
     except Exception as exc:
-        event_component: Any = _warning(f"Event calendar belum tersedia: {type(exc).__name__}")
+        event_component: Any = _warning(
+            f"Event calendar belum tersedia: {type(exc).__name__}"
+        )
     else:
         event_rows = [
-            {
-                "Event": item.get("title", ""),
-                "Time": str(item.get("starts_at", "")),
-            }
+            {"Event": item.get("title", ""), "Time": str(item.get("starts_at", ""))}
             for item in events
         ]
-        event_component = dash_table.DataTable(data=event_rows, columns=[{"name": key, "id": key} for key in ("Event", "Time")], page_size=10)
+        event_component = dash_table.DataTable(
+            data=event_rows,
+            columns=[{"name": key, "id": key} for key in ("Event", "Time")],
+            page_size=10,
+        )
 
     return html.Div(
         [
@@ -365,8 +471,18 @@ def render_ai_council() -> html.Div:
                     html.H4(role.role),
                     html.Span(role.confidence.upper(), className="status-chip"),
                     html.P(role.summary),
-                    html.P("Evidence: " + "; ".join(role.evidence), className="muted") if role.evidence else None,
-                    html.P("Risks: " + "; ".join(role.risks), className="muted") if role.risks else None,
+                    html.P(
+                        "Evidence: " + "; ".join(role.evidence),
+                        className="muted",
+                    )
+                    if role.evidence
+                    else None,
+                    html.P(
+                        "Risks: " + "; ".join(role.risks),
+                        className="muted",
+                    )
+                    if role.risks
+                    else None,
                 ],
                 className="analyst-card",
             )
@@ -376,7 +492,15 @@ def render_ai_council() -> html.Div:
             html.P("AI RESEARCH COUNCIL", className="eyebrow"),
             html.H2("Multi-role research synthesis"),
             cards,
-            _panel("Chief editor", html.Div([html.H4(brief.headline), html.P(brief.signal_policy_note, className="muted")])),
+            _panel(
+                "Chief editor",
+                html.Div(
+                    [
+                        html.H4(brief.headline),
+                        html.P(brief.signal_policy_note, className="muted"),
+                    ]
+                ),
+            ),
             html.Div(analyst_cards, className="analyst-grid"),
         ]
     )
@@ -392,7 +516,9 @@ def _tool_radar_rows() -> list[dict[str, str]]:
                 "Tool": str(item.get("name", "")),
                 "Category": str(item.get("category", "")),
                 "Status": str(item.get("status", "")),
-                "Latest verified activity": str(item.get("latest_verified_activity", "")),
+                "Latest verified activity": str(
+                    item.get("latest_verified_activity", "")
+                ),
                 "Source": str(item.get("source", "")),
             }
         )
@@ -405,8 +531,17 @@ def render_tool_radar() -> html.Div:
         [
             html.P("TOOL RADAR", className="eyebrow"),
             html.H2("Open trading architecture watch"),
-            html.P("Framework baru hanya masuk observe atau sandbox. Tidak ada auto-install ke production.", className="muted"),
-            dash_table.DataTable(data=rows, columns=[{"name": key, "id": key} for key in rows[0]] if rows else [], page_size=10, style_table={"overflowX": "auto"}),
+            html.P(
+                "Framework baru hanya masuk observe atau sandbox. "
+                "Tidak ada auto-install ke production.",
+                className="muted",
+            ),
+            dash_table.DataTable(
+                data=rows,
+                columns=[{"name": key, "id": key} for key in rows[0]] if rows else [],
+                page_size=10,
+                style_table={"overflowX": "auto"},
+            ),
         ]
     )
 
@@ -417,7 +552,9 @@ def render_personal() -> html.Div:
             [
                 html.P("PRIVATE WORKSPACE", className="eyebrow"),
                 html.H2("Personal Mode"),
-                _warning("OIDC belum dikonfigurasi di Render. Personal Mode tetap fail-closed."),
+                _warning(
+                    "OIDC belum dikonfigurasi di Render. Personal Mode tetap fail-closed."
+                ),
             ]
         )
 
@@ -427,8 +564,14 @@ def render_personal() -> html.Div:
             [
                 html.P("PRIVATE WORKSPACE", className="eyebrow"),
                 html.H2("Personal Mode"),
-                html.P("Login Google diperlukan dan hanya stable owner sub yang diizinkan."),
-                html.A("Login with Google", href="/login", className="primary-button"),
+                html.P(
+                    "Login Google diperlukan dan hanya stable owner sub yang diizinkan."
+                ),
+                html.A(
+                    "Login with Google",
+                    href="/login",
+                    className="primary-button",
+                ),
             ]
         )
 
@@ -445,7 +588,9 @@ def render_personal() -> html.Div:
         )
 
         owner_sub = state["sub"]
-        transactions = [asdict(item) for item in list_portfolio_transactions(database_url, owner_sub)]
+        transactions = [
+            asdict(item) for item in list_portfolio_transactions(database_url, owner_sub)
+        ]
         plans = [asdict(item) for item in list_trade_plans(database_url, owner_sub)]
         journal = [asdict(item) for item in list_journal_entries(database_url, owner_sub)]
         playbook = [asdict(item) for item in list_playbook_entries(database_url, owner_sub)]
@@ -455,14 +600,34 @@ def render_personal() -> html.Div:
     def table(rows: list[dict[str, Any]]) -> Any:
         if not rows:
             return html.P("Belum ada data.", className="muted")
-        normalized = [{key: str(value) for key, value in row.items()} for row in rows]
-        return dash_table.DataTable(data=normalized, columns=[{"name": key.replace("_", " ").title(), "id": key} for key in normalized[0]], page_size=8, style_table={"overflowX": "auto"})
+        normalized = [
+            {key: str(value) for key, value in row.items()}
+            for row in rows
+        ]
+        return dash_table.DataTable(
+            data=normalized,
+            columns=[
+                {"name": key.replace("_", " ").title(), "id": key}
+                for key in normalized[0]
+            ],
+            page_size=8,
+            style_table={"overflowX": "auto"},
+        )
 
     return html.Div(
         [
             html.P("PRIVATE WORKSPACE", className="eyebrow"),
-            html.Div([html.H2("Owner Research Terminal"), html.A("Logout", href="/logout", className="text-link")], className="title-row"),
-            html.P(f"Owner verified: {state['display_name'] or 'Google identity'}", className="muted"),
+            html.Div(
+                [
+                    html.H2("Owner Research Terminal"),
+                    html.A("Logout", href="/logout", className="text-link"),
+                ],
+                className="title-row",
+            ),
+            html.P(
+                f"Owner verified: {state['display_name'] or 'Google identity'}",
+                className="muted",
+            ),
             _panel("Portfolio ledger", table(transactions)),
             _panel("Trade plans", table(plans)),
             _panel("Journal", table(journal)),
@@ -503,16 +668,47 @@ def render_risk_tools() -> html.Div:
                         [
                             html.H3("Position sizing"),
                             html.Label("Account size"),
-                            dcc.Input(id="risk-account", type="number", value=10000, min=1),
+                            dcc.Input(
+                                id="risk-account",
+                                type="number",
+                                value=10000,
+                                min=1,
+                            ),
                             html.Label("Risk percent"),
-                            dcc.Input(id="risk-percent", type="number", value=1, min=0.01, max=10, step=0.1),
+                            dcc.Input(
+                                id="risk-percent",
+                                type="number",
+                                value=1,
+                                min=0.01,
+                                max=10,
+                                step=0.1,
+                            ),
                             html.Label("Entry"),
-                            dcc.Input(id="risk-entry", type="number", value=100, min=0.000001),
+                            dcc.Input(
+                                id="risk-entry",
+                                type="number",
+                                value=100,
+                                min=0.000001,
+                            ),
                             html.Label("Stop"),
-                            dcc.Input(id="risk-stop", type="number", value=98, min=0.000001),
+                            dcc.Input(
+                                id="risk-stop",
+                                type="number",
+                                value=98,
+                                min=0.000001,
+                            ),
                             html.Label("Target"),
-                            dcc.Input(id="risk-target", type="number", value=104, min=0.000001),
-                            html.Button("Calculate", id="risk-calc", className="primary-button"),
+                            dcc.Input(
+                                id="risk-target",
+                                type="number",
+                                value=104,
+                                min=0.000001,
+                            ),
+                            html.Button(
+                                "Calculate",
+                                id="risk-calc",
+                                className="primary-button",
+                            ),
                             html.Div(id="risk-output"),
                         ],
                         className="panel form-panel",
@@ -521,12 +717,32 @@ def render_risk_tools() -> html.Div:
                         [
                             html.H3("Expectancy"),
                             html.Label("Win rate percent"),
-                            dcc.Input(id="exp-win-rate", type="number", value=50, min=0, max=100),
+                            dcc.Input(
+                                id="exp-win-rate",
+                                type="number",
+                                value=50,
+                                min=0,
+                                max=100,
+                            ),
                             html.Label("Average win R"),
-                            dcc.Input(id="exp-win", type="number", value=2, min=0),
+                            dcc.Input(
+                                id="exp-win",
+                                type="number",
+                                value=2,
+                                min=0,
+                            ),
                             html.Label("Average loss R"),
-                            dcc.Input(id="exp-loss", type="number", value=1, min=0),
-                            html.Button("Calculate", id="exp-calc", className="primary-button"),
+                            dcc.Input(
+                                id="exp-loss",
+                                type="number",
+                                value=1,
+                                min=0,
+                            ),
+                            html.Button(
+                                "Calculate",
+                                id="exp-calc",
+                                className="primary-button",
+                            ),
                             html.Div(id="exp-output"),
                         ],
                         className="panel form-panel",
@@ -534,7 +750,10 @@ def render_risk_tools() -> html.Div:
                 ],
                 className="two-column",
             ),
-            _panel("Readiness reasons", html.Ul([html.Li(reason) for reason in readiness.reasons])),
+            _panel(
+                "Readiness reasons",
+                html.Ul([html.Li(reason) for reason in readiness.reasons]),
+            ),
         ]
     )
 
@@ -557,17 +776,32 @@ app.layout = html.Div(
         dcc.Store(id="refresh-token", data=0),
         html.Aside(
             [
-                html.Div([html.P("CAKRAWALA", className="brand"), html.P("Intelligence Terminal", className="brand-sub")]),
+                html.Div(
+                    [
+                        html.P("CAKRAWALA", className="brand"),
+                        html.P("Intelligence Terminal", className="brand-sub"),
+                    ]
+                ),
                 dcc.RadioItems(
                     id="page-selector",
-                    options=[{"label": label, "value": key} for key, (label, _) in PAGES.items()],
+                    options=[
+                        {"label": label, "value": key}
+                        for key, (label, _) in PAGES.items()
+                    ],
                     value="overview",
                     className="nav-list",
                     labelClassName="nav-item",
                     inputClassName="nav-radio",
                 ),
-                html.Button("Refresh evidence", id="refresh-button", className="secondary-button"),
-                html.P("Evidence first. No synthetic fallback.", className="sidebar-note"),
+                html.Button(
+                    "Refresh evidence",
+                    id="refresh-button",
+                    className="secondary-button",
+                ),
+                html.P(
+                    "Evidence first. No synthetic fallback.",
+                    className="sidebar-note",
+                ),
             ],
             className="sidebar",
         ),
@@ -575,12 +809,23 @@ app.layout = html.Div(
             [
                 html.Header(
                     [
-                        html.Div([html.P("OPEN INTELLIGENCE", className="eyebrow"), html.H1("Cakrawala")]),
-                        html.Div("Public research terminal", className="status-chip"),
+                        html.Div(
+                            [
+                                html.P("OPEN INTELLIGENCE", className="eyebrow"),
+                                html.H1("Cakrawala"),
+                            ]
+                        ),
+                        html.Div(
+                            "Public research terminal",
+                            className="status-chip",
+                        ),
                     ],
                     className="topbar",
                 ),
-                dcc.Loading(html.Div(id="page-content", className="content"), type="circle"),
+                dcc.Loading(
+                    html.Div(id="page-content", className="content"),
+                    type="circle",
+                ),
             ],
             className="main-shell",
         ),
@@ -596,7 +841,11 @@ app.layout = html.Div(
     Input("refresh-button", "n_clicks"),
     State("refresh-token", "data"),
 )
-def render_page(page: str, refresh_clicks: int | None, refresh_token: int) -> tuple[Any, int]:
+def render_page(
+    page: str,
+    refresh_clicks: int | None,
+    refresh_token: int,
+) -> tuple[Any, int]:
     if refresh_clicks and refresh_clicks > refresh_token:
         PUBLIC_CACHE.clear()
         refresh_token = refresh_clicks
@@ -650,7 +899,12 @@ def calculate_risk(
     State("exp-loss", "value"),
     prevent_initial_call=True,
 )
-def calculate_expectancy(_: int, win_rate: float, average_win: float, average_loss: float) -> Any:
+def calculate_expectancy(
+    _: int,
+    win_rate: float,
+    average_win: float,
+    average_loss: float,
+) -> Any:
     try:
         value = expectancy_r(
             win_rate_percent=float(win_rate),
@@ -663,4 +917,8 @@ def calculate_expectancy(_: int, win_rate: float, average_win: float, average_lo
 
 
 if __name__ == "__main__":
-    app.run(debug=False, host="0.0.0.0", port=int(os.environ.get("PORT", "8050")))
+    app.run(
+        debug=False,
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", "8050")),
+    )
