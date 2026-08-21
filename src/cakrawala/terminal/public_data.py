@@ -13,6 +13,7 @@ from cakrawala.data.providers.binance import fetch_klines
 from cakrawala.data.providers.binance_futures import fetch_futures_positioning
 from cakrawala.data.providers.bls_calendar import fetch_bls_calendar
 from cakrawala.data.providers.bmkg import earthquake_summary, fetch_latest_earthquake
+from cakrawala.data.providers.cftc import fetch_tff_market
 from cakrawala.data.providers.news_feeds import fetch_macro_news
 from cakrawala.data.providers.world_bank import fetch_indicator
 from cakrawala.intelligence.news import assess_news
@@ -113,12 +114,37 @@ def load_economic_calendar(days_ahead: int = 14) -> list[dict[str, Any]]:
     result = fetch_bls_calendar()
     now = datetime.now(UTC)
     cutoff = now + timedelta(days=days_ahead)
-    upcoming = [
-        event
-        for event in result.data
-        if now <= event.starts_at <= cutoff
-    ]
+    upcoming = [event for event in result.data if now <= event.starts_at <= cutoff]
     return [asdict(event) for event in upcoming[:30]]
+
+
+@st.cache_data(ttl=21600, show_spinner=False)
+def load_cot_context() -> list[dict[str, Any]]:
+    markets = (
+        "EURO FX",
+        "U.S. DOLLAR INDEX",
+        "NASDAQ-100",
+    )
+    rows: list[dict[str, Any]] = []
+    for market in markets:
+        try:
+            result = fetch_tff_market(market)
+        except Exception:
+            continue
+        latest = result.data[0]
+        previous = result.data[1] if len(result.data) > 1 else None
+        item = asdict(latest)
+        item["asset_manager_change"] = (
+            latest.asset_manager_net - previous.asset_manager_net if previous else None
+        )
+        item["leveraged_funds_change"] = (
+            latest.leveraged_funds_net - previous.leveraged_funds_net if previous else None
+        )
+        item["source_url"] = result.provenance.source_url
+        rows.append(item)
+    if not rows:
+        raise ValueError("CFTC returned no configured institutional markets")
+    return rows
 
 
 def market_risk_stats(frame: pd.DataFrame) -> dict[str, float | None]:
@@ -156,23 +182,12 @@ def _safe_load(
 def public_snapshot() -> dict[str, Any]:
     snapshot: dict[str, Any] = {"errors": {}}
     _safe_load("earthquake", load_earthquake, snapshot)
-    _safe_load(
-        "population",
-        lambda: load_macro_indicator("SP.POP.TOTL"),
-        snapshot,
-    )
-    _safe_load(
-        "gdp",
-        lambda: load_macro_indicator("NY.GDP.MKTP.KD.ZG"),
-        snapshot,
-    )
-    _safe_load(
-        "inflation",
-        lambda: load_macro_indicator("FP.CPI.TOTL.ZG"),
-        snapshot,
-    )
+    _safe_load("population", lambda: load_macro_indicator("SP.POP.TOTL"), snapshot)
+    _safe_load("gdp", lambda: load_macro_indicator("NY.GDP.MKTP.KD.ZG"), snapshot)
+    _safe_load("inflation", lambda: load_macro_indicator("FP.CPI.TOTL.ZG"), snapshot)
     _safe_load("market", load_market_history, snapshot)
     _safe_load("news", load_news, snapshot)
     _safe_load("futures", load_futures_context, snapshot)
     _safe_load("calendar", load_economic_calendar, snapshot)
+    _safe_load("cot", load_cot_context, snapshot)
     return snapshot
