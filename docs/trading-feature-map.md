@@ -7,7 +7,7 @@ where practical.
 
 | Trading workflow need | Cakrawala implementation | Evidence or storage |
 | --- | --- | --- |
-| Realtime news monitor | News & Research search, theme filters, reading-priority score | Federal Reserve and BIS official RSS |
+| Realtime news monitor | News & Research search, theme filters, reading-priority score | Federal Reserve, BIS, and ECB official RSS |
 | Daily research brief | Overview and Research Desk | Public market, macro, news, session, and positioning evidence |
 | Economic calendar | Event Risk | Official BLS iCalendar schedule |
 | Currency strength | Market Desk currency-strength view | ECB daily FX reference-rate history |
@@ -28,7 +28,8 @@ where practical.
 | Equity illustration | Expectancy-based curve | User-entered historical win rate and R statistics |
 | Pre-trade checklist | Trader Toolkit plus Execution Readiness | User checklist followed by source, model, freshness, and authorization gates |
 | Trade planning | Owner Trade Plans | Private PostgreSQL, owner `sub`, append-only history |
-| Journal | Owner Journal | Private PostgreSQL, append-only history |
+| Journal review | Owner Journal | Result in R, setup, emotion, mistake tag, execution quality, lesson, optional screenshot URL |
+| Journal statistics | Owner Journal review metrics | Win rate, average R, execution quality, and recurring mistake counts |
 | Playbook | Owner Playbook | Private PostgreSQL, append-only history |
 | Trading bot discovery | Bot & Tool Radar | Weekly primary-source research, sandbox-only candidates |
 
@@ -55,9 +56,14 @@ verified for the instrument being traded.
 
 ## After trade
 
-The owner workspace records the result in R, notes what happened, and captures a lesson. Playbook
-entries can then preserve repeatable setups without editing past journal history. Future journal
-analytics should add review dimensions without mutating historical records.
+The owner workspace records result in R, setup or playbook name, dominant emotion, primary mistake,
+execution quality, notes, lesson, and an optional HTTPS screenshot reference. Historical rows remain
+append-only. The review layer summarizes win rate, average R, average execution quality, and recurring
+mistakes so improvement is based on batches of trades rather than one outcome.
+
+Playbook entries preserve repeatable setups without rewriting historical journal records. Screenshot
+storage itself is not hosted by the public app; Personal Mode stores only the optional URL supplied by
+the owner.
 
 ## Source interpretation boundaries
 
