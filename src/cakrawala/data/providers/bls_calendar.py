@@ -9,7 +9,6 @@ from cakrawala.data.http import HttpPolicy, get_text
 from cakrawala.data.provenance import build_provenance
 from cakrawala.data.providers.base import ProviderResult
 
-
 CALENDAR_URL = "https://www.bls.gov/schedule/news_release/bls.ics"
 BASE_URL = "https://www.bls.gov"
 
