@@ -15,6 +15,8 @@ from cakrawala.personal.storage import (
     list_portfolio_transactions,
     list_trade_plans,
 )
+from cakrawala.terminal.overview_ui import render_overview
+from cakrawala.terminal.public_data import public_snapshot
 from cakrawala.terminal.trading_ui import (
     render_events,
     render_positioning,
@@ -27,11 +29,9 @@ from cakrawala.terminal.ui import (
     _macro,
     _market,
     _news_research,
-    _overview,
     _owner_config,
     _tool_radar,
 )
-from cakrawala.terminal.public_data import public_snapshot
 
 
 def _personal_workspace() -> None:
@@ -99,10 +99,28 @@ def _personal_workspace() -> None:
             entry = stop = target = None
             if include_levels:
                 col1, col2, col3 = st.columns(3)
-                entry = col1.number_input("Entry", min_value=0.000001, value=100.0, format="%.6f")
-                stop = col2.number_input("Stop", min_value=0.000001, value=98.0, format="%.6f")
-                target = col3.number_input("Target", min_value=0.000001, value=104.0, format="%.6f")
-            thesis = st.text_area("Thesis", placeholder="Apa yang harus benar agar setup ini layak?")
+                entry = col1.number_input(
+                    "Entry",
+                    min_value=0.000001,
+                    value=100.0,
+                    format="%.6f",
+                )
+                stop = col2.number_input(
+                    "Stop",
+                    min_value=0.000001,
+                    value=98.0,
+                    format="%.6f",
+                )
+                target = col3.number_input(
+                    "Target",
+                    min_value=0.000001,
+                    value=104.0,
+                    format="%.6f",
+                )
+            thesis = st.text_area(
+                "Thesis",
+                placeholder="Apa yang harus benar agar setup ini layak?",
+            )
             invalidation = st.text_area(
                 "Invalidation",
                 placeholder="Kondisi apa yang membuat ide ini batal?",
@@ -263,7 +281,7 @@ def run() -> None:
     st.divider()
 
     if page == "Overview":
-        _overview(snapshot)
+        render_overview(snapshot)
     elif page == "News & Research":
         _news_research(snapshot)
     elif page == "Positioning":
