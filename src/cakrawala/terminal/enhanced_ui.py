@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 
 import streamlit as st
 
+from cakrawala.terminal.ai_council_ui import render_ai_council
 from cakrawala.terminal.desk_v2 import render_market_desk, render_trader_tools
 from cakrawala.terminal.overview_ui import render_overview
 from cakrawala.terminal.personal_ui import render_personal_workspace
@@ -25,6 +26,7 @@ from cakrawala.terminal.ui import (
 
 _WORKSPACES = (
     "Overview",
+    "AI Research Council",
     "News & Research",
     "Positioning",
     "Market Desk",
@@ -41,6 +43,8 @@ _WORKSPACES = (
 def _render_public_workspace(page: str, snapshot: dict[str, object]) -> None:
     if page == "Overview":
         render_overview(snapshot)
+    elif page == "AI Research Council":
+        render_ai_council()
     elif page == "News & Research":
         _news_research(snapshot)
     elif page == "Positioning":
