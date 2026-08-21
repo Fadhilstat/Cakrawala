@@ -1,5 +1,5 @@
-from flask import Flask
 import pytest
+from flask import Flask
 
 from cakrawala.data.providers.ecb_fx import parse_ecb_pairs
 from cakrawala.web import personal_forex
