@@ -8,7 +8,6 @@ from cakrawala.data.http import HttpPolicy, get_json
 from cakrawala.data.provenance import build_provenance
 from cakrawala.data.providers.base import ProviderResult
 
-
 DATASET_URL = "https://publicreporting.cftc.gov/resource/gpe5-46if.json"
 
 
@@ -30,7 +29,8 @@ def _number(row: dict[str, Any], key: str) -> float:
 
 
 def parse_tff_row(row: dict[str, Any]) -> InstitutionalPositioning:
-    report_date = datetime.fromisoformat(str(row["report_date_as_yyyy_mm_dd"]).replace("Z", "+00:00"))
+    report_date_raw = str(row["report_date_as_yyyy_mm_dd"]).replace("Z", "+00:00")
+    report_date = datetime.fromisoformat(report_date_raw)
     if report_date.tzinfo is None:
         report_date = report_date.replace(tzinfo=UTC)
     return InstitutionalPositioning(
