@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
@@ -92,7 +93,9 @@ def _read_response(
                     raise ProviderRequestError(f"Unexpected content type: {content_type}")
                 raw = response.read(policy.max_bytes + 1)
                 if len(raw) > policy.max_bytes:
-                    raise ProviderRequestError("Provider response exceeded the configured size limit")
+                    raise ProviderRequestError(
+                        "Provider response exceeded the configured size limit"
+                    )
                 return status, content_type, raw
         except HTTPError as exc:
             last_error = exc
