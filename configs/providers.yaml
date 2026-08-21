@@ -29,6 +29,21 @@ providers:
     content_types: [application/json, text/json]
     max_bytes: 4194304
     attribution: Binance public market data
+  binance_futures_context:
+    enabled: true
+    base_url: https://fapi.binance.com
+    allowed_hosts: [fapi.binance.com]
+    content_types: [application/json, text/json]
+    max_bytes: 2097152
+    attribution: Binance public USD-M futures market data
+  bls_economic_calendar:
+    enabled: true
+    base_url: https://www.bls.gov
+    path: /schedule/news_release/bls.ics
+    allowed_hosts: [www.bls.gov]
+    content_types: [text/calendar, text/plain]
+    max_bytes: 2097152
+    attribution: U.S. Bureau of Labor Statistics
   bps_webapi:
     enabled: true
     base_url: https://webapi.bps.go.id
