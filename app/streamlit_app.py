@@ -67,7 +67,11 @@ def render_source_error(source_name: str, exc: Exception) -> None:
     st.caption(f"Status teknis: {type(exc).__name__}")
 
 
-def render_panel(title: str, loader: Callable[[], dict[str, Any]], renderer: Callable[[dict[str, Any]], None]) -> None:
+def render_panel(
+    title: str,
+    loader: Callable[[], dict[str, Any]],
+    renderer: Callable[[dict[str, Any]], None],
+) -> None:
     st.subheader(title)
     try:
         payload = loader()
@@ -95,7 +99,10 @@ def render_population(payload: dict[str, Any]) -> None:
     col1, col2 = st.columns(2)
     col1.metric("Populasi Indonesia", formatted)
     col2.metric("Tahun referensi", payload.get("year") or "N/A")
-    st.caption("Nilai ini mengikuti tahun referensi yang tersedia dari World Bank, bukan estimasi real-time.")
+    st.caption(
+        "Nilai ini mengikuti tahun referensi yang tersedia dari World Bank, "
+        "bukan estimasi real-time."
+    )
 
 
 def render_market(payload: dict[str, Any]) -> None:
@@ -104,7 +111,63 @@ def render_market(payload: dict[str, Any]) -> None:
     col2.metric("High", f"{payload['high']:,.2f}")
     col3.metric("Low", f"{payload['low']:,.2f}")
     col4.metric("Volume", f"{payload['volume']:,.2f}")
-    st.caption("Public market data only. This is evidence for research, not a trading instruction.")
+    st.caption(
+        "Public market data only. This is evidence for research, not a trading instruction."
+    )
+
+
+def owner_auth_config() -> tuple[bool, str | None]:
+    try:
+        auth = st.secrets.get("auth", {})
+        cakrawala = st.secrets.get("cakrawala", {})
+    except FileNotFoundError:
+        return False, None
+
+    owner_sub = cakrawala.get("owner_sub")
+    required_auth = (
+        "redirect_uri",
+        "cookie_secret",
+        "client_id",
+        "client_secret",
+        "server_metadata_url",
+    )
+    configured = bool(owner_sub) and all(auth.get(key) for key in required_auth)
+    return configured, str(owner_sub) if owner_sub else None
+
+
+def render_personal_mode() -> None:
+    st.subheader("Owner research terminal")
+    configured, owner_sub = owner_auth_config()
+    if not configured:
+        st.warning(
+            "Personal Mode belum diaktifkan. Konfigurasi OIDC dan identitas owner harus tersedia "
+            "di secret store server sebelum login dibuka."
+        )
+        st.caption("Public Mode tetap dapat digunakan tanpa membuka data pribadi.")
+        return
+
+    if not st.user.is_logged_in:
+        st.write("Login diperlukan untuk membuka ruang riset owner.")
+        st.button("Log in with Google", on_click=st.login, use_container_width=True)
+        return
+
+    current_sub = str(st.user.get("sub", ""))
+    if not owner_sub or current_sub != owner_sub:
+        st.error("Akun berhasil terautentikasi, tetapi tidak memiliki akses owner.")
+        st.button("Log out", on_click=st.logout)
+        return
+
+    st.success("Owner identity verified.")
+    st.button("Log out", on_click=st.logout)
+    st.write(
+        "Signal adalah output riset deterministik dari policy yang terversi dan prediksi tersimpan. "
+        "Model bahasa boleh menjelaskan evidence, tetapi tidak boleh membuat atau mengganti signal."
+    )
+    st.info(
+        "Private portfolio storage tetap harus dikonfigurasi sebelum transaksi atau watchlist "
+        "ditampilkan. Terminal tidak akan memakai penyimpanan publik sebagai fallback."
+    )
+    st.caption("Research use only. Model outputs and market signals are uncertain, not guarantees.")
 
 
 st.title("Cakrawala Intelligence Terminal")
@@ -141,13 +204,4 @@ with public_tab:
         render_panel("Snapshot pasar publik", load_market, render_market)
 
 with personal_tab:
-    st.subheader("Owner research terminal")
-    st.warning(
-        "Personal Mode fail closed pada build publik. Google OIDC dan role database privat harus "
-        "dikonfigurasi server-side sebelum akses owner diaktifkan."
-    )
-    st.write(
-        "Signal adalah output riset deterministik dari policy yang terversi dan prediksi tersimpan. "
-        "Model bahasa boleh menjelaskan evidence, tetapi tidak boleh membuat atau mengganti signal."
-    )
-    st.caption("Research use only. Model outputs and market signals are uncertain, not guarantees.")
+    render_personal_mode()
