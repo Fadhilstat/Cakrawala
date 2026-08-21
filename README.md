@@ -6,9 +6,25 @@ Cakrawala is an open-data intelligence terminal built to make economic, market, 
 and model evidence easier to inspect without hiding uncertainty behind one opaque score. It is a
 public information product and an owner research tool, not a dashboard built only for screenshots.
 
-The normalized MVP source tree is published in this repository. Public Mode can run without private
-credentials and reads approved public sources directly. A live production URL is still not claimed
-until the Streamlit deployment itself has been created and smoke-tested.
+The public application is deployed at `https://cakrawala-terminal.streamlit.app`. Public Mode can
+run without private credentials and reads approved public sources directly. Personal Mode remains
+owner-only and stays closed until its OIDC and private database settings are configured.
+
+## Public terminal workspaces
+
+The public interface is organized as four working views rather than isolated source cards:
+
+1. **Command Center** summarizes source health, current market movement, market risk, inflation,
+   and the latest BMKG earthquake evidence.
+2. **Indonesia & Macro** tracks population, GDP growth, and inflation with historical context and
+   source provenance.
+3. **Market Intelligence** provides 90-day BTC/USDT price history, candlesticks, daily returns,
+   trading range, momentum, realized volatility, drawdown, and volume.
+4. **Risk & Model Evidence** shows model-promotion readiness, descriptive market risk, policy gates,
+   and `NO SIGNAL` whenever model evidence is not sufficient for a deterministic decision.
+
+The terminal intentionally distinguishes descriptive analytics from forecasts. A market statistic
+cannot become a recommendation unless the model and signal policy have passed their evidence gates.
 
 ## What it answers
 
@@ -43,9 +59,9 @@ parameters are redacted before a source URL is written to provenance metadata.
 Source interfaces were rechecked on 21 August 2026. See `docs/sources.md` for the approved endpoints
 and attribution requirements.
 
-The first public terminal view deliberately uses sources that do not require credentials: BMKG,
+The public terminal deliberately starts with sources that do not require credentials: BMKG,
 World Bank, and Binance public market data. BPS and FRED can be enabled later without blocking the
-public portfolio launch.
+public portfolio experience.
 
 ## Architecture
 
@@ -137,8 +153,8 @@ never be committed.
 ## Deployment
 
 The no-mandatory-cost portfolio launch path uses GitHub and Streamlit Community Cloud. Public Mode
-can be deployed first without a database. Personal Mode can then use a private PostgreSQL service
-such as Neon's Free Plan when its current limits fit the project.
+can run without a database. Personal Mode can then use a private PostgreSQL service such as Neon's
+Free Plan when its current limits fit the project.
 
 Run the public preflight:
 
