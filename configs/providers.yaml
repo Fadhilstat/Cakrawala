@@ -36,6 +36,14 @@ providers:
     content_types: [application/json, text/json]
     max_bytes: 2097152
     attribution: Binance public USD-M futures market data
+  cftc_tff:
+    enabled: true
+    base_url: https://publicreporting.cftc.gov
+    path: /resource/gpe5-46if.json
+    allowed_hosts: [publicreporting.cftc.gov]
+    content_types: [application/json, text/json]
+    max_bytes: 2097152
+    attribution: U.S. Commodity Futures Trading Commission
   bls_economic_calendar:
     enabled: true
     base_url: https://www.bls.gov
