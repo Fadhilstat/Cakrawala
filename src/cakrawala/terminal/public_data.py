@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import asdict
+from datetime import UTC, datetime, timedelta
 from math import sqrt
 from typing import Any
 
@@ -9,6 +10,8 @@ import pandas as pd
 import streamlit as st
 
 from cakrawala.data.providers.binance import fetch_klines
+from cakrawala.data.providers.binance_futures import fetch_futures_positioning
+from cakrawala.data.providers.bls_calendar import fetch_bls_calendar
 from cakrawala.data.providers.bmkg import earthquake_summary, fetch_latest_earthquake
 from cakrawala.data.providers.news_feeds import fetch_macro_news
 from cakrawala.data.providers.world_bank import fetch_indicator
@@ -94,6 +97,30 @@ def load_news() -> list[dict[str, Any]]:
     return [asdict(item) for item in assess_news(items)]
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def load_futures_context() -> dict[str, Any]:
+    result = fetch_futures_positioning("BTCUSDT")
+    return {
+        "latest": asdict(result.data["latest"]),
+        "ratio_history": result.data["ratio_history"],
+        "sources": result.data["sources"],
+        "fetched_at": result.provenance.fetched_at,
+    }
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def load_economic_calendar(days_ahead: int = 14) -> list[dict[str, Any]]:
+    result = fetch_bls_calendar()
+    now = datetime.now(UTC)
+    cutoff = now + timedelta(days=days_ahead)
+    upcoming = [
+        event
+        for event in result.data
+        if now <= event.starts_at <= cutoff
+    ]
+    return [asdict(event) for event in upcoming[:30]]
+
+
 def market_risk_stats(frame: pd.DataFrame) -> dict[str, float | None]:
     returns = frame["return"].dropna()
     closes = frame["close"].astype(float)
@@ -146,4 +173,6 @@ def public_snapshot() -> dict[str, Any]:
     )
     _safe_load("market", load_market_history, snapshot)
     _safe_load("news", load_news, snapshot)
+    _safe_load("futures", load_futures_context, snapshot)
+    _safe_load("calendar", load_economic_calendar, snapshot)
     return snapshot
