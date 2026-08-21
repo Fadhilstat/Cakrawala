@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from cakrawala.data.providers.news_feeds import NewsItem, _parse_rss
 from cakrawala.intelligence.news import assess_news_item
@@ -25,7 +25,7 @@ def test_news_assessment_is_transparent_keyword_priority() -> None:
         source="Example",
         title="Monetary policy and interest rate decision",
         link="https://example.com/policy",
-        published_at=datetime.now(timezone.utc),
+        published_at=datetime.now(UTC),
         summary="Inflation and policy rate conditions were reviewed.",
     )
     result = assess_news_item(item)
