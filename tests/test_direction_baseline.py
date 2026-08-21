@@ -37,7 +37,12 @@ def test_direction_dataset_uses_only_completed_history() -> None:
     assert not dataset.empty
     assert dataset["open_time"].is_monotonic_increasing
     assert dataset["open_time"].is_unique
-    assert dataset["next_return"].notna().all()
+    assert (dataset["next_open_time"] > dataset["open_time"]).all()
+    assert dataset["next_session_return"].notna().all()
+    assert (
+        dataset["target_up"]
+        == (dataset["next_close"] > dataset["next_open"]).astype(int)
+    ).all()
 
 
 def test_walk_forward_backtest_is_complete_and_deterministic() -> None:
@@ -49,6 +54,10 @@ def test_walk_forward_backtest_is_complete_and_deterministic() -> None:
     assert first.observations > 400
     assert first.diagnostics["prediction_coverage"] == pytest.approx(1.0)
     assert first.diagnostics["lookahead_detected"] is False
+    assert (
+        first.diagnostics["signal_timing"]
+        == "features_at_close_t_trade_open_to_close_t_plus_1"
+    )
     assert first.promotion_inputs["walk_forward_complete"] is True
     assert first.promotion_inputs["point_in_time_features"] is True
 
