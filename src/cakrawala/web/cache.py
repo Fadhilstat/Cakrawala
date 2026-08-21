@@ -4,13 +4,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from threading import RLock
 from time import monotonic
-from typing import Generic, TypeVar
-
-T = TypeVar("T")
 
 
 @dataclass
-class _Entry(Generic[T]):
+class _Entry[T]:
     value: T
     expires_at: float
 
@@ -25,7 +22,7 @@ class TTLCache:
         self._entries: dict[str, _Entry[object]] = {}
         self._lock = RLock()
 
-    def get(self, key: str, ttl_seconds: int, loader: Callable[[], T]) -> T:
+    def get[T](self, key: str, ttl_seconds: int, loader: Callable[[], T]) -> T:
         if ttl_seconds <= 0:
             raise ValueError("ttl_seconds must be positive")
         now = monotonic()
