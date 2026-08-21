@@ -1,6 +1,5 @@
 from cakrawala.config import load_yaml
 
-
 ALLOWED_TOOL_STATES = {
     "observe only",
     "observe and sandbox",
