@@ -44,7 +44,9 @@ def _frame_from_klines(rows: list[list[object]], fetched_at: datetime) -> pd.Dat
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run the Cakrawala BTC direction baseline backtest")
+    parser = argparse.ArgumentParser(
+        description="Run the Cakrawala BTC direction baseline backtest"
+    )
     parser.add_argument("--symbol", default="BTCUSDT")
     parser.add_argument("--limit", type=int, default=1000)
     parser.add_argument("--output", default="artifacts/backtests/btc_direction_latest.json")
