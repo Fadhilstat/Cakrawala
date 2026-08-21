@@ -11,7 +11,11 @@ import pandas as pd
 from cakrawala.web.cache import PUBLIC_CACHE
 
 
-def _safe_load(name: str, loader: Callable[[], Any], snapshot: dict[str, Any]) -> None:
+def _safe_load(
+    name: str,
+    loader: Callable[[], Any],
+    snapshot: dict[str, Any],
+) -> None:
     try:
         snapshot[name] = loader()
     except Exception as exc:
@@ -20,7 +24,10 @@ def _safe_load(name: str, loader: Callable[[], Any], snapshot: dict[str, Any]) -
 
 
 def load_earthquake() -> dict[str, Any]:
-    from cakrawala.data.providers.bmkg import earthquake_summary, fetch_latest_earthquake
+    from cakrawala.data.providers.bmkg import (
+        earthquake_summary,
+        fetch_latest_earthquake,
+    )
 
     def loader() -> dict[str, Any]:
         result = fetch_latest_earthquake()
@@ -33,7 +40,10 @@ def load_earthquake() -> dict[str, Any]:
     return PUBLIC_CACHE.get("earthquake", 600, loader)
 
 
-def load_macro_indicator(indicator: str, date_range: str = "2018:2024") -> dict[str, Any]:
+def load_macro_indicator(
+    indicator: str,
+    date_range: str = "2018:2024",
+) -> dict[str, Any]:
     from cakrawala.data.providers.world_bank import fetch_indicator
 
     def loader() -> dict[str, Any]:
@@ -60,7 +70,10 @@ def load_macro_indicator(indicator: str, date_range: str = "2018:2024") -> dict[
     return PUBLIC_CACHE.get(key, 1800, loader)
 
 
-def load_market_history(symbol: str = "BTCUSDT", limit: int = 90) -> dict[str, Any]:
+def load_market_history(
+    symbol: str = "BTCUSDT",
+    limit: int = 90,
+) -> dict[str, Any]:
     from cakrawala.data.providers.binance import fetch_klines
 
     market = symbol.upper().strip()
@@ -89,15 +102,15 @@ def load_market_history(symbol: str = "BTCUSDT", limit: int = 90) -> dict[str, A
         frame["return"] = frame["close"].pct_change()
         latest = frame.iloc[-1]
         previous = frame.iloc[-2]
+        change_1d_pct = (
+            float(latest["close"]) / float(previous["close"]) - 1.0
+        ) * 100
         return {
             "frame": frame,
             "latest": {
                 "close": float(latest["close"]),
                 "volume": float(latest["volume"]),
-                "change_1d_pct": (
-                    float(latest["close"]) / float(previous["close"]) - 1.0
-                )
-                * 100,
+                "change_1d_pct": change_1d_pct,
             },
             "fetched_at": result.provenance.fetched_at,
             "source_url": result.provenance.source_url,
@@ -139,7 +152,11 @@ def load_economic_calendar(days_ahead: int = 14) -> list[dict[str, Any]]:
         result = fetch_bls_calendar()
         now = datetime.now(UTC)
         cutoff = now + timedelta(days=days_ahead)
-        events = [event for event in result.data if now <= event.starts_at <= cutoff]
+        events = [
+            event
+            for event in result.data
+            if now <= event.starts_at <= cutoff
+        ]
         return [asdict(event) for event in events[:30]]
 
     return PUBLIC_CACHE.get(f"calendar:{days_ahead}", 1800, loader)
@@ -159,10 +176,14 @@ def load_cot_context() -> list[dict[str, Any]]:
             previous = result.data[1] if len(result.data) > 1 else None
             item = asdict(latest)
             item["asset_manager_change"] = (
-                latest.asset_manager_net - previous.asset_manager_net if previous else None
+                latest.asset_manager_net - previous.asset_manager_net
+                if previous
+                else None
             )
             item["leveraged_funds_change"] = (
-                latest.leveraged_funds_net - previous.leveraged_funds_net if previous else None
+                latest.leveraged_funds_net - previous.leveraged_funds_net
+                if previous
+                else None
             )
             item["source_url"] = result.provenance.source_url
             rows.append(item)
@@ -191,14 +212,22 @@ def market_risk_stats(frame: pd.DataFrame) -> dict[str, float | None]:
     volatility = None
     if len(last_30) > 1:
         volatility = float(last_30.std(ddof=1) * sqrt(365) * 100)
-    drawdown = float((closes.iloc[-1] / closes.cummax().iloc[-1] - 1.0) * 100)
+    running_peak = closes.cummax().iloc[-1]
+    drawdown = float((closes.iloc[-1] / running_peak - 1.0) * 100)
     lookback = max(len(closes) - 31, 0)
     momentum = float((closes.iloc[-1] / closes.iloc[lookback] - 1.0) * 100)
-    return {"volatility": volatility, "drawdown": drawdown, "momentum": momentum}
+    return {
+        "volatility": volatility,
+        "drawdown": drawdown,
+        "momentum": momentum,
+    }
 
 
 def public_snapshot() -> dict[str, Any]:
-    snapshot: dict[str, Any] = {"errors": {}, "generated_at": datetime.now(UTC)}
+    snapshot: dict[str, Any] = {
+        "errors": {},
+        "generated_at": datetime.now(UTC),
+    }
     _safe_load("earthquake", load_earthquake, snapshot)
     _safe_load("population", lambda: load_macro_indicator("SP.POP.TOTL"), snapshot)
     _safe_load("gdp", lambda: load_macro_indicator("NY.GDP.MKTP.KD.ZG"), snapshot)
