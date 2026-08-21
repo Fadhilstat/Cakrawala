@@ -18,14 +18,14 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install --upgrade pip
       - run: pip install -e '.[dev]'
-      - run: python -m compileall -q src scripts app api
+      - run: python -m compileall -q src scripts app api main.py
       - run: python scripts/check_no_em_dash.py
       - name: Streamlit fallback import smoke test
         run: python -c "from cakrawala.terminal.enhanced_ui import run; assert callable(run)"
       - name: Dash production smoke test
         run: python -c "from app.dash_app import server; client=server.test_client(); response=client.get('/healthz'); assert response.status_code == 200; assert response.json['status'] == 'ok'"
-      - name: Vercel WSGI smoke test
-        run: python -c "from api.index import app; client=app.test_client(); response=client.get('/healthz'); assert response.status_code == 200; assert response.json['status'] == 'ok'"
+      - name: Native Vercel WSGI smoke test
+        run: python -c "from main import app; client=app.test_client(); response=client.get('/healthz'); assert response.status_code == 200; assert response.json['status'] == 'ok'"
       - name: Build deployment wheel
         run: python -m build --wheel
       - name: Verify wheel runtime resources
