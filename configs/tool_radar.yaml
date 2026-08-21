@@ -12,9 +12,11 @@ items:
   - name: Freqtrade
     category: crypto trading bot
     status: sandbox candidate
-    latest_verified_activity: "New release 2026.7 pull request opened 2026-07-31"
+    latest_verified_activity: "Active development confirmed 2026-08-21, including historic prediction repair and FreqAI resilience work"
     source: https://github.com/freqtrade/freqtrade
-    rationale: "Mature open-source bot with active 2026 development. Evaluate only in an isolated sandbox before any integration."
+    license: GPL-3.0
+    reuse_policy: architecture reference only unless GPL obligations are explicitly accepted
+    rationale: "Mature separation between strategy, data, backtest, dry-run, and runtime concerns. Useful as an architecture benchmark, not a code source for the MIT application."
     risks:
       - exchange credential exposure
       - strategy overfitting
@@ -24,10 +26,12 @@ items:
   - name: Hummingbot
     category: crypto execution framework
     status: sandbox candidate
-    latest_verified_activity: "Core repository active in July 2026; Gateway v2.16.0 released 2026-07-29"
+    latest_verified_activity: "Active 2026 repository and connector ecosystem"
     source: https://github.com/hummingbot/hummingbot
     supporting_source: https://github.com/hummingbot/gateway/releases
-    rationale: "Actively maintained execution framework. Gateway security hardening is relevant, but production use still requires connector and wallet review."
+    license: Apache-2.0
+    reuse_policy: patterns may be adapted with attribution when code reuse is ever considered
+    rationale: "Connector isolation and execution-service boundaries are useful references for future paper-trading integrations."
     risks:
       - exchange and wallet credential exposure
       - connector-specific execution risk
@@ -37,11 +41,27 @@ items:
   - name: NautilusTrader
     category: event-driven trading platform
     status: observe and sandbox
-    latest_verified_activity: "v1.230.0 Beta released 2026-06-29"
-    source: https://github.com/nautechsystems/nautilus_trader/releases
-    rationale: "Strong research and execution architecture with active 2026 releases. Beta status means integration should remain isolated until compatibility is proven."
+    latest_verified_activity: "Active 2026 development on the public repository"
+    source: https://github.com/nautechsystems/nautilus_trader
+    license: LGPL-3.0
+    reuse_policy: architecture reference only in Cakrawala core
+    rationale: "Event-driven modularity, adapters, state, and research-to-runtime consistency are strong architecture references."
     risks:
-      - beta API changes
       - adapter-specific behavior
       - operational complexity
       - live execution configuration risk
+      - LGPL compliance if direct library reuse is introduced
+
+  - name: Nocturna Trading System
+    category: event-driven trading system reference
+    status: observe only
+    latest_verified_activity: "EventBus and OrderStateMachine foundation merged 2026-08-10"
+    source: https://github.com/Yog-Sotho/Nocturna-Trading-System
+    license: MIT
+    reuse_policy: concepts are independently reimplemented for Cakrawala
+    rationale: "Useful reference for explicit state machines, emergency stop, risk-manager separation, strategy lifecycle, and persistent operational state."
+    risks:
+      - autonomous execution claims require independent validation
+      - broker and paid-data dependencies do not fit the free public MVP
+      - backtest and live behavior must never be assumed equivalent
+      - direct order controls are outside Cakrawala public scope

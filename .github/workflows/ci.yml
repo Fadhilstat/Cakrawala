@@ -20,6 +20,9 @@ jobs:
       - run: pip install -e '.[dev]'
       - run: python -m compileall -q src scripts app
       - run: python scripts/check_no_em_dash.py
-      - run: python -c "from cakrawala.terminal.enhanced_ui import run; assert callable(run)"
+      - name: Streamlit fallback import smoke test
+        run: python -c "from cakrawala.terminal.enhanced_ui import run; assert callable(run)"
+      - name: Dash production smoke test
+        run: python -c "from app.dash_app import server; client=server.test_client(); response=client.get('/healthz'); assert response.status_code == 200; assert response.json['status'] == 'ok'"
       - run: ruff check .
       - run: pytest

@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: cakrawala-terminal
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: python -m pip install --upgrade pip && pip install -e .
+    startCommand: gunicorn app.dash_app:server --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120
+    healthCheckPath: /healthz
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.11
