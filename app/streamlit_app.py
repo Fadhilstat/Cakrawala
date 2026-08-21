@@ -1,5 +1,5 @@
 from __future__ import annotations
 
-from cakrawala.terminal.ui import run
+from cakrawala.terminal.enhanced_ui import run
 
 run()
