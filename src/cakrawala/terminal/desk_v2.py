@@ -7,6 +7,13 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from cakrawala.intelligence.trader_tools import (
+    compound_projection,
+    pip_or_tick_value,
+    position_pnl,
+    prop_risk_budget,
+)
+
 
 @st.cache_data(ttl=900, show_spinner=False)
 def _fx_strength() -> list[dict[str, object]]:
@@ -143,24 +150,46 @@ def render_trader_tools() -> None:
             value=1.0,
             format="%.6f",
         )
-        pip_value = lot_size * pip_size * lots * quote_to_account
+        pip_value = pip_or_tick_value(
+            units_per_lot=lot_size,
+            tick_size=pip_size,
+            lots=lots,
+            quote_to_account=quote_to_account,
+        )
         st.metric("Approximate pip or tick value", f"{pip_value:,.2f}")
 
     with pnl_tab:
         side = st.selectbox("Side", ["LONG", "SHORT"], key="pnl_side")
-        entry = st.number_input("Entry price", value=100.0, key="pnl_entry")
-        exit_price = st.number_input("Exit price", value=102.0, key="pnl_exit")
+        entry = st.number_input("Entry price", min_value=0.000001, value=100.0, key="pnl_entry")
+        exit_price = st.number_input(
+            "Exit price",
+            min_value=0.000001,
+            value=102.0,
+            key="pnl_exit",
+        )
         quantity = st.number_input("Quantity", min_value=0.0, value=1.0, key="pnl_qty")
-        direction = 1 if side == "LONG" else -1
-        value = (exit_price - entry) * quantity * direction
+        value = position_pnl(
+            side=side,
+            entry=entry,
+            exit_price=exit_price,
+            quantity=quantity,
+        )
         st.metric("Gross PnL", f"{value:+,.2f}")
 
     with compound_tab:
         capital = st.number_input("Starting capital", min_value=1.0, value=10000.0)
         monthly = st.number_input("Monthly change assumption (%)", value=2.0, step=0.25)
         months = st.slider("Months", 1, 60, 12)
-        projected = capital * (1 + monthly / 100) ** months
-        st.metric("Deterministic projection", f"{projected:,.2f}")
+        try:
+            projected = compound_projection(
+                starting_capital=capital,
+                period_change_percent=monthly,
+                periods=months,
+            )
+        except ValueError as exc:
+            st.warning(str(exc))
+        else:
+            st.metric("Deterministic projection", f"{projected:,.2f}")
         st.caption("Ini ilustrasi matematika, bukan forecast return.")
 
     with prop_tab:
@@ -173,15 +202,22 @@ def render_trader_tools() -> None:
             value=1.0,
         )
         current_daily_pnl = st.number_input("Current daily PnL", value=0.0)
-        daily_budget = equity * daily_limit / 100
-        remaining_daily = max(daily_budget + current_daily_pnl, 0.0)
-        trades_to_daily = remaining_daily / (equity * planned_risk / 100)
+        budget = prop_risk_budget(
+            equity=equity,
+            daily_loss_limit_percent=daily_limit,
+            total_loss_limit_percent=total_limit,
+            planned_risk_percent=planned_risk,
+            current_daily_pnl=current_daily_pnl,
+        )
         cols = st.columns(3)
-        cols[0].metric("Daily loss budget", f"{daily_budget:,.2f}")
-        cols[1].metric("Remaining daily buffer", f"{remaining_daily:,.2f}")
-        cols[2].metric("Full-risk losses to daily cap", f"{trades_to_daily:.1f}")
+        cols[0].metric("Daily loss budget", f"{budget.daily_loss_budget:,.2f}")
+        cols[1].metric("Remaining daily buffer", f"{budget.remaining_daily_buffer:,.2f}")
+        cols[2].metric(
+            "Full-risk losses to daily cap",
+            f"{budget.full_risk_losses_to_daily_cap:.1f}",
+        )
         st.caption(
-            f"Total evaluation loss budget: {equity * total_limit / 100:,.2f}. "
+            f"Total evaluation loss budget: {budget.total_loss_budget:,.2f}. "
             "Rules differ by provider, so enter the limits that actually apply."
         )
 
