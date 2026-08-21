@@ -19,6 +19,7 @@ def fetch_fred_series(series_id: str) -> ProviderResult:
         url,
         policy=policy,
         params={"series_id": series_id, "api_key": api_key, "file_type": "json"},
+        sensitive_params=frozenset({"api_key"}),
     )
     if not isinstance(response.payload, dict) or "observations" not in response.payload:
         raise ValueError("FRED response failed schema validation")
