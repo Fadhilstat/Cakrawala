@@ -1,0 +1,9 @@
+policy_version: 1
+research_only: true
+stale_after_minutes: 180
+thresholds:
+  buy_probability_min: 0.62
+  avoid_probability_max: 0.42
+  max_forecast_volatility: 0.045
+  minimum_model_health: 0.80
+outputs: [BUY, HOLD, AVOID, NO SIGNAL]
