@@ -1,0 +1,10 @@
+promotion:
+  minimum_health: 0.80
+  minimum_relative_improvement: 0.02
+  maximum_secondary_metric_regression: 0.03
+  require_walk_forward: true
+  require_point_in_time_features: true
+roles:
+  expected_return: null
+  direction_probability: null
+  volatility: null

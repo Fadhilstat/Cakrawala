@@ -1,0 +1,6 @@
+schedules:
+  source_health: "0 */6 * * *"
+  public_ingestion: "20 */6 * * *"
+  analytical_refresh: "0 1 * * *"
+  model_evaluation: "0 3 * * 0"
+  security_scan: "0 4 * * 1"

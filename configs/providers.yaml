@@ -1,0 +1,47 @@
+providers:
+  bmkg_earthquake:
+    enabled: true
+    base_url: https://data.bmkg.go.id
+    path: /DataMKG/TEWS/autogempa.json
+    allowed_hosts: [data.bmkg.go.id]
+    content_types: [application/json, text/json]
+    max_bytes: 1048576
+    attribution: BMKG
+  bmkg_weather:
+    enabled: true
+    base_url: https://api.bmkg.go.id
+    path: /publik/prakiraan-cuaca
+    allowed_hosts: [api.bmkg.go.id]
+    content_types: [application/json, text/json]
+    max_bytes: 4194304
+    attribution: BMKG
+  world_bank:
+    enabled: true
+    base_url: https://api.worldbank.org
+    allowed_hosts: [api.worldbank.org]
+    content_types: [application/json, text/json]
+    max_bytes: 4194304
+    attribution: World Bank
+  binance_market_data:
+    enabled: true
+    base_url: https://data-api.binance.vision
+    allowed_hosts: [data-api.binance.vision]
+    content_types: [application/json, text/json]
+    max_bytes: 4194304
+    attribution: Binance public market data
+  bps_webapi:
+    enabled: true
+    base_url: https://webapi.bps.go.id
+    allowed_hosts: [webapi.bps.go.id]
+    content_types: [application/json, text/json]
+    max_bytes: 4194304
+    requires_secret: BPS_API_KEY
+    attribution: BPS Statistics Indonesia
+  fred:
+    enabled: true
+    base_url: https://api.stlouisfed.org
+    allowed_hosts: [api.stlouisfed.org]
+    content_types: [application/json, text/json]
+    max_bytes: 4194304
+    requires_secret: FRED_API_KEY
+    attribution: Federal Reserve Bank of St. Louis
