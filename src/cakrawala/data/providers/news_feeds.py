@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
@@ -9,6 +10,7 @@ from cakrawala.data.http import HttpPolicy, ProviderRequestError, get_text
 
 FED_PRESS_RELEASES = "https://www.federalreserve.gov/feeds/press_all.xml"
 BIS_PRESS_RELEASES = "https://www.bis.org/doclist/all_pressrels.rss"
+ECB_PRESS_RELEASES = "https://www.ecb.europa.eu/rss/press.html"
 
 
 @dataclass(frozen=True)
@@ -63,9 +65,13 @@ def _parse_rss(xml_text: str, source: str, limit: int) -> list[NewsItem]:
     return items
 
 
-def fetch_fed_press_releases(limit: int = 10) -> list[NewsItem]:
+def _validate_limit(limit: int) -> None:
     if not 1 <= limit <= 30:
         raise ValueError("limit must be between 1 and 30")
+
+
+def fetch_fed_press_releases(limit: int = 10) -> list[NewsItem]:
+    _validate_limit(limit)
     policy = HttpPolicy(
         allowed_hosts=frozenset({"www.federalreserve.gov"}),
         max_bytes=2 * 1024 * 1024,
@@ -76,8 +82,7 @@ def fetch_fed_press_releases(limit: int = 10) -> list[NewsItem]:
 
 
 def fetch_bis_press_releases(limit: int = 10) -> list[NewsItem]:
-    if not 1 <= limit <= 30:
-        raise ValueError("limit must be between 1 and 30")
+    _validate_limit(limit)
     policy = HttpPolicy(
         allowed_hosts=frozenset({"www.bis.org"}),
         max_bytes=2 * 1024 * 1024,
@@ -92,9 +97,33 @@ def fetch_bis_press_releases(limit: int = 10) -> list[NewsItem]:
     return _parse_rss(response.text, "BIS", limit)
 
 
+def fetch_ecb_press_releases(limit: int = 10) -> list[NewsItem]:
+    _validate_limit(limit)
+    policy = HttpPolicy(
+        allowed_hosts=frozenset({"www.ecb.europa.eu"}),
+        max_bytes=2 * 1024 * 1024,
+        accepted_content_types=("text/xml", "application/xml", "application/rss+xml"),
+    )
+    response = get_text(ECB_PRESS_RELEASES, policy=policy)
+    return _parse_rss(response.text, "ECB", limit)
+
+
 def fetch_macro_news(limit_per_source: int = 8) -> list[NewsItem]:
-    items = fetch_fed_press_releases(limit_per_source)
-    items += fetch_bis_press_releases(limit_per_source)
+    _validate_limit(limit_per_source)
+    loaders: tuple[Callable[[int], list[NewsItem]], ...] = (
+        fetch_fed_press_releases,
+        fetch_bis_press_releases,
+        fetch_ecb_press_releases,
+    )
+    items: list[NewsItem] = []
+    for loader in loaders:
+        try:
+            items.extend(loader(limit_per_source))
+        except Exception:
+            continue
+    if not items:
+        raise ProviderRequestError("All configured macro news feeds were unavailable")
+
     oldest = datetime.min.replace(tzinfo=UTC)
     return sorted(
         items,
