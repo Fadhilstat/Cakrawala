@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 @dataclass(frozen=True)
@@ -18,7 +18,7 @@ def build_provenance(provider: str, source_url: str, raw: bytes) -> ProvenanceRe
     return ProvenanceRecord(
         provider=provider,
         source_url=source_url,
-        fetched_at=datetime.now(timezone.utc),
+        fetched_at=datetime.now(UTC),
         sha256=hashlib.sha256(raw).hexdigest(),
         byte_count=len(raw),
     )
