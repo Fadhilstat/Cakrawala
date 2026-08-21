@@ -26,5 +26,11 @@ jobs:
         run: python -c "from app.dash_app import server; client=server.test_client(); response=client.get('/healthz'); assert response.status_code == 200; assert response.json['status'] == 'ok'"
       - name: Vercel WSGI smoke test
         run: python -c "from api.index import app; client=app.test_client(); response=client.get('/healthz'); assert response.status_code == 200; assert response.json['status'] == 'ok'"
+      - name: Build deployment wheel
+        run: python -m build --wheel
+      - name: Verify wheel runtime resources
+        run: python -c "import glob, zipfile; path=glob.glob('dist/*.whl')[0]; names=set(zipfile.ZipFile(path).namelist()); required={'app/dash_app.py','app/assets/terminal.css','configs/providers.yaml','data/ai_briefs/latest.json'}; missing=required-names; assert not missing, missing"
+      - name: Smoke test installed wheel away from repository
+        run: pip install --force-reinstall --no-deps dist/*.whl && cd /tmp && python -c "from app.dash_app import server; from cakrawala.config import load_yaml; assert load_yaml('configs/providers.yaml'); client=server.test_client(); response=client.get('/healthz'); assert response.status_code == 200"
       - run: ruff check .
       - run: pytest
