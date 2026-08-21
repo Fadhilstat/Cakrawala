@@ -9,18 +9,10 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
-from cakrawala.data.providers.binance import fetch_klines
-from cakrawala.data.providers.binance_futures import fetch_futures_positioning
-from cakrawala.data.providers.bls_calendar import fetch_bls_calendar
-from cakrawala.data.providers.bmkg import earthquake_summary, fetch_latest_earthquake
-from cakrawala.data.providers.cftc import fetch_tff_market
-from cakrawala.data.providers.news_feeds import fetch_macro_news
-from cakrawala.data.providers.world_bank import fetch_indicator
-from cakrawala.intelligence.news import assess_news
 
-
-@st.cache_data(ttl=600, show_spinner=False)
 def load_earthquake() -> dict[str, Any]:
+    from cakrawala.data.providers.bmkg import earthquake_summary, fetch_latest_earthquake
+
     result = fetch_latest_earthquake()
     summary = earthquake_summary(result.data)
     return {
@@ -30,11 +22,15 @@ def load_earthquake() -> dict[str, Any]:
     }
 
 
-@st.cache_data(ttl=1800, show_spinner=False)
+load_earthquake = st.cache_data(ttl=600, show_spinner=False)(load_earthquake)
+
+
 def load_macro_indicator(
     indicator: str,
     date_range: str = "2018:2024",
 ) -> dict[str, Any]:
+    from cakrawala.data.providers.world_bank import fetch_indicator
+
     result = fetch_indicator("IDN", indicator, date_range)
     rows = result.data[1] if len(result.data) > 1 else []
     observations = [
@@ -55,8 +51,12 @@ def load_macro_indicator(
     }
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+load_macro_indicator = st.cache_data(ttl=1800, show_spinner=False)(load_macro_indicator)
+
+
 def load_market_history(limit: int = 90) -> dict[str, Any]:
+    from cakrawala.data.providers.binance import fetch_klines
+
     result = fetch_klines("BTCUSDT", interval="1d", limit=limit)
     records: list[dict[str, Any]] = []
     for row in result.data:
@@ -92,14 +92,23 @@ def load_market_history(limit: int = 90) -> dict[str, Any]:
     }
 
 
-@st.cache_data(ttl=600, show_spinner=False)
+load_market_history = st.cache_data(ttl=300, show_spinner=False)(load_market_history)
+
+
 def load_news() -> list[dict[str, Any]]:
+    from cakrawala.data.providers.news_feeds import fetch_macro_news
+    from cakrawala.intelligence.news import assess_news
+
     items = fetch_macro_news(limit_per_source=8)
     return [asdict(item) for item in assess_news(items)]
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+load_news = st.cache_data(ttl=600, show_spinner=False)(load_news)
+
+
 def load_futures_context() -> dict[str, Any]:
+    from cakrawala.data.providers.binance_futures import fetch_futures_positioning
+
     result = fetch_futures_positioning("BTCUSDT")
     return {
         "latest": asdict(result.data["latest"]),
@@ -109,8 +118,12 @@ def load_futures_context() -> dict[str, Any]:
     }
 
 
-@st.cache_data(ttl=1800, show_spinner=False)
+load_futures_context = st.cache_data(ttl=300, show_spinner=False)(load_futures_context)
+
+
 def load_economic_calendar(days_ahead: int = 14) -> list[dict[str, Any]]:
+    from cakrawala.data.providers.bls_calendar import fetch_bls_calendar
+
     result = fetch_bls_calendar()
     now = datetime.now(UTC)
     cutoff = now + timedelta(days=days_ahead)
@@ -118,8 +131,14 @@ def load_economic_calendar(days_ahead: int = 14) -> list[dict[str, Any]]:
     return [asdict(event) for event in upcoming[:30]]
 
 
-@st.cache_data(ttl=21600, show_spinner=False)
+load_economic_calendar = st.cache_data(ttl=1800, show_spinner=False)(
+    load_economic_calendar
+)
+
+
 def load_cot_context() -> list[dict[str, Any]]:
+    from cakrawala.data.providers.cftc import fetch_tff_market
+
     markets = (
         "EURO FX",
         "U.S. DOLLAR INDEX",
@@ -145,6 +164,9 @@ def load_cot_context() -> list[dict[str, Any]]:
     if not rows:
         raise ValueError("CFTC returned no configured institutional markets")
     return rows
+
+
+load_cot_context = st.cache_data(ttl=21600, show_spinner=False)(load_cot_context)
 
 
 def market_risk_stats(frame: pd.DataFrame) -> dict[str, float | None]:
