@@ -45,3 +45,19 @@ providers:
     max_bytes: 4194304
     requires_secret: FRED_API_KEY
     attribution: Federal Reserve Bank of St. Louis
+  federal_reserve_news:
+    enabled: true
+    base_url: https://www.federalreserve.gov
+    path: /feeds/press_all.xml
+    allowed_hosts: [www.federalreserve.gov]
+    content_types: [text/xml, application/xml, application/rss+xml]
+    max_bytes: 2097152
+    attribution: Board of Governors of the Federal Reserve System
+  bis_news:
+    enabled: true
+    base_url: https://www.bis.org
+    path: /doclist/all_pressrels.rss
+    allowed_hosts: [www.bis.org]
+    content_types: [text/xml, application/xml, application/rss+xml, application/rdf+xml]
+    max_bytes: 2097152
+    attribution: Bank for International Settlements
