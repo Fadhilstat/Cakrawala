@@ -36,10 +36,12 @@ def list_portfolio_transactions(
         ORDER BY executed_at DESC
         LIMIT %s
     """
-    with psycopg.connect(database_url, connect_timeout=8) as connection:
-        with connection.cursor() as cursor:
-            cursor.execute(query, (owner_sub, limit))
-            rows = cursor.fetchall()
+    with (
+        psycopg.connect(database_url, connect_timeout=8) as connection,
+        connection.cursor() as cursor,
+    ):
+        cursor.execute(query, (owner_sub, limit))
+        rows = cursor.fetchall()
 
     return [
         PortfolioTransaction(
