@@ -17,10 +17,13 @@ untrusted until transport, content type, size, schema, and quality checks pass.
 | BLS release calendar | `https://www.bls.gov/schedule/news_release/bls.ics` | None | Official scheduled U.S. labor and inflation release times |
 | Federal Reserve press releases | `https://www.federalreserve.gov/feeds/press_all.xml` | None | Official policy and regulatory news RSS |
 | BIS press releases | `https://www.bis.org/doclist/all_pressrels.rss` | None | Official global central-bank context RSS |
+| ECB press releases | `https://www.ecb.europa.eu/rss/press.html` | None | Official ECB press-release RSS |
 
 ## News evidence policy
 
-The News & Research workspace ingests official Federal Reserve and BIS press-release feeds.
+The News & Research workspace ingests official Federal Reserve, BIS, and ECB press-release feeds.
+Each feed is isolated from the others. If one source is temporarily unavailable, healthy sources
+remain visible; the entire news workspace fails only when all configured macro feeds are unavailable.
 Headlines are tagged with transparent keyword rules for themes such as monetary policy, liquidity,
 financial stability, regulation, and digital assets. The attention score is a reading-priority aid,
 not a sentiment forecast and not a trade direction.
