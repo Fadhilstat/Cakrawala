@@ -22,7 +22,6 @@ from cakrawala.terminal.ui import (
     _tool_radar,
 )
 
-
 _WORKSPACES = (
     "Overview",
     "News & Research",
