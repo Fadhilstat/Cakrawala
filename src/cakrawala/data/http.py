@@ -49,16 +49,32 @@ def _validated_url(url: str, policy: HttpPolicy) -> str:
     return url
 
 
+def _query_url(
+    url: str,
+    params: Mapping[str, str | int | float],
+    *,
+    redact: frozenset[str] = frozenset(),
+) -> str:
+    safe_params = {
+        key: "[REDACTED]" if key in redact else value
+        for key, value in params.items()
+    }
+    query = urlencode(safe_params, doseq=False)
+    return f"{url}?{query}" if query else url
+
+
 def get_json(
     url: str,
     *,
     policy: HttpPolicy,
     params: Mapping[str, str | int | float] | None = None,
     headers: Mapping[str, str] | None = None,
+    sensitive_params: frozenset[str] = frozenset(),
 ) -> JsonResponse:
     _validated_url(url, policy)
-    query = urlencode(params or {}, doseq=False)
-    request_url = f"{url}?{query}" if query else url
+    request_params = dict(params or {})
+    request_url = _query_url(url, request_params)
+    provenance_url = _query_url(url, request_params, redact=sensitive_params)
     request_headers = {"User-Agent": "Cakrawala/0.1 public-research-client"}
     request_headers.update(headers or {})
 
@@ -79,7 +95,7 @@ def get_json(
                 except (UnicodeDecodeError, json.JSONDecodeError) as exc:
                     raise ProviderRequestError("Provider returned invalid UTF-8 JSON") from exc
                 return JsonResponse(
-                    url=request_url,
+                    url=provenance_url,
                     status=status,
                     content_type=content_type,
                     payload=payload,
