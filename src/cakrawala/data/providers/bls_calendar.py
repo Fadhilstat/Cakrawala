@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from urllib.parse import urljoin
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from cakrawala.data.http import HttpPolicy, get_text
 from cakrawala.data.provenance import build_provenance
@@ -31,28 +32,41 @@ def _unfold_lines(text: str) -> list[str]:
     return unfolded
 
 
-def _parse_datetime(value: str) -> datetime:
+def _parse_datetime(value: str, timezone_name: str | None = None) -> datetime:
     clean = value.strip()
-    formats = (
-        "%Y%m%dT%H%M%SZ",
-        "%Y%m%dT%H%M%S",
-        "%Y%m%d",
-    )
-    for pattern in formats:
-        try:
-            parsed = datetime.strptime(clean, pattern)
-            return parsed.replace(tzinfo=UTC)
-        except ValueError:
-            continue
-    raise ValueError("unsupported calendar datetime")
+    if clean.endswith("Z"):
+        return datetime.strptime(clean, "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
+
+    if "T" in clean:
+        parsed = datetime.strptime(clean, "%Y%m%dT%H%M%S")
+        if timezone_name:
+            try:
+                return parsed.replace(tzinfo=ZoneInfo(timezone_name)).astimezone(UTC)
+            except ZoneInfoNotFoundError as exc:
+                raise ValueError("calendar timezone is unavailable") from exc
+        return parsed.replace(tzinfo=UTC)
+
+    return datetime.strptime(clean, "%Y%m%d").replace(tzinfo=UTC)
+
+
+def _calendar_field(key_part: str, value: str) -> tuple[str, str, str | None]:
+    segments = key_part.split(";")
+    key = segments[0]
+    timezone_name = None
+    for segment in segments[1:]:
+        if segment.startswith("TZID="):
+            timezone_name = segment.removeprefix("TZID=")
+    return key, value.strip(), timezone_name
 
 
 def parse_calendar(text: str) -> list[EconomicEvent]:
     events: list[EconomicEvent] = []
     current: dict[str, str] | None = None
+    current_timezone: str | None = None
     for line in _unfold_lines(text):
         if line == "BEGIN:VEVENT":
             current = {}
+            current_timezone = None
             continue
         if line == "END:VEVENT":
             if current and "SUMMARY" in current and "DTSTART" in current:
@@ -62,19 +76,22 @@ def parse_calendar(text: str) -> list[EconomicEvent]:
                 events.append(
                     EconomicEvent(
                         title=current["SUMMARY"].replace("\\,", ",").strip(),
-                        starts_at=_parse_datetime(current["DTSTART"]),
+                        starts_at=_parse_datetime(current["DTSTART"], current_timezone),
                         source="U.S. Bureau of Labor Statistics",
                         link=link,
                     )
                 )
             current = None
+            current_timezone = None
             continue
         if current is None or ":" not in line:
             continue
         key_part, value = line.split(":", 1)
-        key = key_part.split(";", 1)[0]
+        key, clean_value, timezone_name = _calendar_field(key_part, value)
         if key in {"SUMMARY", "DTSTART", "URL"}:
-            current[key] = value.strip()
+            current[key] = clean_value
+        if key == "DTSTART" and timezone_name:
+            current_timezone = timezone_name
     return sorted(events, key=lambda item: item.starts_at)
 
 
