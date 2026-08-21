@@ -7,22 +7,27 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from cakrawala.data.providers.binance import fetch_klines
-from cakrawala.data.providers.ecb_fx import fetch_currency_strength
-
 
 @st.cache_data(ttl=900, show_spinner=False)
 def _fx_strength() -> list[dict[str, object]]:
+    from cakrawala.data.providers.ecb_fx import fetch_currency_strength
+
     result = fetch_currency_strength()
     return [asdict(item) for item in result.data]
 
 
 @st.cache_data(ttl=300, show_spinner=False)
 def _crypto_universe() -> pd.DataFrame:
+    from cakrawala.data.providers.binance import fetch_klines
+
     rows: list[dict[str, object]] = []
     for symbol in ("BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT"):
         result = fetch_klines(symbol, interval="1d", limit=31)
-        closes = [float(row[4]) for row in result.data if isinstance(row, list) and len(row) > 4]
+        closes = [
+            float(row[4])
+            for row in result.data
+            if isinstance(row, list) and len(row) > 4
+        ]
         if len(closes) < 2:
             continue
         series = pd.Series(closes, dtype="float64")
@@ -56,12 +61,18 @@ def render_market_desk() -> None:
         except Exception as exc:
             st.warning(f"ECB currency strength belum tersedia: {type(exc).__name__}")
         else:
-            st.caption("Sumber: European Central Bank reference rates")
-            st.dataframe(
-                frame[["currency", "change_1d_pct", "change_5d_pct", "change_20d_pct", "as_of"]],
-                use_container_width=True,
-                hide_index=True,
+            st.caption(
+                "Sumber: European Central Bank reference rates. Nilai ini untuk konteks riset, "
+                "bukan harga transaksi."
             )
+            columns = [
+                "currency",
+                "change_1d_pct",
+                "change_5d_pct",
+                "change_20d_pct",
+                "as_of",
+            ]
+            st.dataframe(frame[columns], use_container_width=True, hide_index=True)
             chart = frame.sort_values("change_5d_pct")
             st.plotly_chart(
                 px.bar(chart, x="change_5d_pct", y="currency", orientation="h"),
@@ -74,11 +85,14 @@ def render_market_desk() -> None:
         except Exception as exc:
             st.warning(f"Crypto breadth belum tersedia: {type(exc).__name__}")
             return
-        st.dataframe(
-            frame[["symbol", "close", "change_1d_pct", "momentum_30d_pct", "volatility_30d_pct"]],
-            use_container_width=True,
-            hide_index=True,
-        )
+        columns = [
+            "symbol",
+            "close",
+            "change_1d_pct",
+            "momentum_30d_pct",
+            "volatility_30d_pct",
+        ]
+        st.dataframe(frame[columns], use_container_width=True, hide_index=True)
         momentum_positive = int((frame["momentum_30d_pct"] > 0).sum())
         average_vol = float(frame["volatility_30d_pct"].mean())
         regime = "RISK ON" if momentum_positive >= 3 and average_vol < 80 else "CAUTIOUS"
@@ -87,9 +101,16 @@ def render_market_desk() -> None:
         left, right = st.columns(2)
         left.metric("Crypto breadth", f"{momentum_positive}/{len(frame)} positive")
         right.metric("Research regime", regime)
+        st.caption(
+            "Desk regime memakai rule transparan: breadth positif minimal 3 dari 4 dan "
+            "rata-rata volatilitas tahunan di bawah 80% untuk RISK ON. Ini bukan signal."
+        )
 
         returns = pd.DataFrame(
-            {row["symbol"]: row["returns"] for _, row in frame.iterrows()}
+            {
+                row["symbol"]: pd.Series(row["returns"], dtype="float64")
+                for _, row in frame.iterrows()
+            }
         )
         corr = returns.corr().round(2)
         st.markdown("### 30D correlation")
@@ -104,12 +125,17 @@ def render_trader_tools() -> None:
     st.subheader("Trader Toolkit")
     st.write("Calculator lokal tanpa API berbayar. Tidak ada tombol yang mengirim order.")
 
-    sizing, pnl, compound, prop, checklist = st.tabs(
-        ["PnL & Pip", "Position PnL", "Compound", "Prop Risk", "Checklist"]
+    pip_tab, pnl_tab, compound_tab, prop_tab, checklist_tab = st.tabs(
+        ["Pip Value", "Position PnL", "Compound", "Prop Risk", "Checklist"]
     )
-    with sizing:
+    with pip_tab:
         lot_size = st.number_input("Units per lot", min_value=1.0, value=100000.0)
-        pip_size = st.number_input("Pip size", min_value=0.000001, value=0.0001, format="%.6f")
+        pip_size = st.number_input(
+            "Pip or tick size",
+            min_value=0.000001,
+            value=0.0001,
+            format="%.6f",
+        )
         lots = st.number_input("Lots", min_value=0.0, value=0.1, step=0.01)
         quote_to_account = st.number_input(
             "Quote currency to account conversion",
@@ -118,9 +144,9 @@ def render_trader_tools() -> None:
             format="%.6f",
         )
         pip_value = lot_size * pip_size * lots * quote_to_account
-        st.metric("Approximate pip value", f"{pip_value:,.2f}")
+        st.metric("Approximate pip or tick value", f"{pip_value:,.2f}")
 
-    with pnl:
+    with pnl_tab:
         side = st.selectbox("Side", ["LONG", "SHORT"], key="pnl_side")
         entry = st.number_input("Entry price", value=100.0, key="pnl_entry")
         exit_price = st.number_input("Exit price", value=102.0, key="pnl_exit")
@@ -129,7 +155,7 @@ def render_trader_tools() -> None:
         value = (exit_price - entry) * quantity * direction
         st.metric("Gross PnL", f"{value:+,.2f}")
 
-    with compound:
+    with compound_tab:
         capital = st.number_input("Starting capital", min_value=1.0, value=10000.0)
         monthly = st.number_input("Monthly change assumption (%)", value=2.0, step=0.25)
         months = st.slider("Months", 1, 60, 12)
@@ -137,18 +163,29 @@ def render_trader_tools() -> None:
         st.metric("Deterministic projection", f"{projected:,.2f}")
         st.caption("Ini ilustrasi matematika, bukan forecast return.")
 
-    with prop:
+    with prop_tab:
         equity = st.number_input("Evaluation equity", min_value=1.0, value=100000.0)
         daily_limit = st.number_input("Max daily loss (%)", min_value=0.1, value=5.0)
         total_limit = st.number_input("Max total loss (%)", min_value=0.1, value=10.0)
-        planned_risk = st.number_input("Planned risk per trade (%)", min_value=0.1, value=1.0)
-        trades_to_daily = daily_limit / planned_risk
+        planned_risk = st.number_input(
+            "Planned risk per trade (%)",
+            min_value=0.1,
+            value=1.0,
+        )
+        current_daily_pnl = st.number_input("Current daily PnL", value=0.0)
+        daily_budget = equity * daily_limit / 100
+        remaining_daily = max(daily_budget + current_daily_pnl, 0.0)
+        trades_to_daily = remaining_daily / (equity * planned_risk / 100)
         cols = st.columns(3)
-        cols[0].metric("Daily loss budget", f"{equity * daily_limit / 100:,.2f}")
-        cols[1].metric("Total loss budget", f"{equity * total_limit / 100:,.2f}")
+        cols[0].metric("Daily loss budget", f"{daily_budget:,.2f}")
+        cols[1].metric("Remaining daily buffer", f"{remaining_daily:,.2f}")
         cols[2].metric("Full-risk losses to daily cap", f"{trades_to_daily:.1f}")
+        st.caption(
+            f"Total evaluation loss budget: {equity * total_limit / 100:,.2f}. "
+            "Rules differ by provider, so enter the limits that actually apply."
+        )
 
-    with checklist:
+    with checklist_tab:
         items = [
             "Thesis jelas",
             "Invalidation jelas",
@@ -158,9 +195,17 @@ def render_trader_tools() -> None:
             "News dan positioning tidak bertentangan ekstrem",
             "Rencana exit sudah tertulis",
         ]
-        passed = sum(st.checkbox(item, key=f"check_{index}") for index, item in enumerate(items))
+        passed = sum(
+            st.checkbox(item, key=f"check_{index}")
+            for index, item in enumerate(items)
+        )
         st.progress(passed / len(items))
         if passed == len(items):
-            st.success("Checklist lengkap. Tetap jalankan model, freshness, dan authorization gate.")
+            st.success(
+                "Checklist lengkap. Tetap jalankan model, freshness, dan authorization gate."
+            )
         else:
-            st.info(f"{passed}/{len(items)} checklist selesai. Belum siap dianggap execution-ready.")
+            st.info(
+                f"{passed}/{len(items)} checklist selesai. "
+                "Belum siap dianggap execution-ready."
+            )
