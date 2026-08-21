@@ -64,7 +64,7 @@ class BacktestResult:
     baseline: dict[str, float]
     strategy: dict[str, float]
     buy_and_hold: dict[str, float]
-    diagnostics: dict[str, float | int | bool]
+    diagnostics: dict[str, float | int | bool | str]
     promotion_inputs: dict[str, float | bool | str]
 
     def to_dict(self) -> dict[str, Any]:
@@ -110,9 +110,15 @@ def build_direction_dataset(frame: pd.DataFrame) -> pd.DataFrame:
     volume_mean = data["volume"].rolling(20).mean()
     volume_std = data["volume"].rolling(20).std(ddof=0).replace(0, np.nan)
     data["volume_z_20"] = (data["volume"] - volume_mean) / volume_std
-    data["target_up"] = (data["close"].shift(-1) > data["close"]).astype(float)
-    data["next_return"] = data["close"].shift(-1) / data["close"] - 1
-    data = data.dropna(subset=[*FEATURE_COLUMNS, "next_return"]).reset_index(drop=True)
+
+    data["next_open_time"] = data["open_time"].shift(-1)
+    data["next_open"] = data["open"].shift(-1)
+    data["next_close"] = data["close"].shift(-1)
+    data["target_up"] = (data["next_close"] > data["next_open"]).astype(float)
+    data["next_session_return"] = data["next_close"] / data["next_open"] - 1
+    data = data.dropna(
+        subset=[*FEATURE_COLUMNS, "next_open_time", "next_open", "next_close", "next_session_return"]
+    ).reset_index(drop=True)
     data["target_up"] = data["target_up"].astype(int)
     return data
 
@@ -174,6 +180,15 @@ def _return_metrics(returns: pd.Series, periods_per_year: int = 365) -> dict[str
     }
 
 
+def _buy_and_hold_returns(predicted: pd.DataFrame, round_trip_cost: float) -> pd.Series:
+    returns = predicted["next_close"].pct_change().astype(float)
+    returns.iloc[0] = predicted["next_close"].iloc[0] / predicted["next_open"].iloc[0] - 1
+    half_cost = round_trip_cost / 2
+    returns.iloc[0] -= half_cost
+    returns.iloc[-1] -= half_cost
+    return returns
+
+
 def walk_forward_backtest(
     frame: pd.DataFrame,
     config: BacktestConfig | None = None,
@@ -207,27 +222,22 @@ def walk_forward_backtest(
     baseline_metrics = _classification_metrics(y_true, baseline_probability)
 
     position = (model_probability >= active.buy_probability).astype(float)
-    turnover = position.diff().abs().fillna(position.iloc[0])
-    cost_rate = active.transaction_cost_bps / 10_000
-    strategy_returns = position * predicted["next_return"] - turnover * cost_rate
-    if position.iloc[-1] > 0:
-        strategy_returns.iloc[-1] -= cost_rate
+    round_trip_cost = active.transaction_cost_bps / 10_000
+    strategy_returns = position * predicted["next_session_return"] - position * round_trip_cost
     strategy_metrics = _return_metrics(strategy_returns)
     strategy_metrics.update(
         {
             "exposure": float(position.mean()),
-            "turnover_events": float(turnover.sum() + position.iloc[-1]),
+            "traded_sessions": float(position.sum()),
             "invested_hit_rate": float(
-                (predicted.loc[position.eq(1), "next_return"] > 0).mean()
+                (predicted.loc[position.eq(1), "next_session_return"] > 0).mean()
             )
             if position.sum() > 0
             else 0.0,
         }
     )
 
-    benchmark_returns = predicted["next_return"].copy()
-    benchmark_returns.iloc[0] -= cost_rate
-    benchmark_returns.iloc[-1] -= cost_rate
+    benchmark_returns = _buy_and_hold_returns(predicted, round_trip_cost)
     benchmark_metrics = _return_metrics(benchmark_returns)
 
     baseline_brier = baseline_metrics["brier_score"]
@@ -257,8 +267,8 @@ def walk_forward_backtest(
         model_name="logistic_direction_v1",
         observations=len(predicted),
         train_start=dataset["open_time"].iloc[0].isoformat(),
-        test_start=predicted["open_time"].iloc[0].isoformat(),
-        test_end=predicted["open_time"].iloc[-1].isoformat(),
+        test_start=predicted["next_open_time"].iloc[0].isoformat(),
+        test_end=predicted["next_open_time"].iloc[-1].isoformat(),
         classification=model_metrics,
         baseline=baseline_metrics,
         strategy=strategy_metrics,
@@ -269,6 +279,8 @@ def walk_forward_backtest(
             "retrain_count": len(prediction_rows),
             "feature_count": len(FEATURE_COLUMNS),
             "lookahead_detected": False,
+            "signal_timing": "features_at_close_t_trade_open_to_close_t_plus_1",
+            "transaction_cost_assumption": "round_trip_cost_per_invested_session",
         },
         promotion_inputs=promotion_inputs,
     )
