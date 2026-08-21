@@ -35,6 +35,15 @@ class JsonResponse:
     raw: bytes
 
 
+@dataclass(frozen=True)
+class TextResponse:
+    url: str
+    status: int
+    content_type: str
+    text: str
+    raw: bytes
+
+
 def _validated_url(url: str, policy: HttpPolicy) -> str:
     parsed = urlparse(url)
     if parsed.scheme != "https":
@@ -63,19 +72,13 @@ def _query_url(
     return f"{url}?{query}" if query else url
 
 
-def get_json(
-    url: str,
+def _read_response(
+    request_url: str,
     *,
     policy: HttpPolicy,
-    params: Mapping[str, str | int | float] | None = None,
     headers: Mapping[str, str] | None = None,
-    sensitive_params: frozenset[str] = frozenset(),
-) -> JsonResponse:
-    _validated_url(url, policy)
-    request_params = dict(params or {})
-    request_url = _query_url(url, request_params)
-    provenance_url = _query_url(url, request_params, redact=sensitive_params)
-    request_headers = {"User-Agent": "Cakrawala/0.1 public-research-client"}
+) -> tuple[int, str, bytes]:
+    request_headers = {"User-Agent": "Cakrawala/0.2 public-research-client"}
     request_headers.update(headers or {})
 
     last_error: Exception | None = None
@@ -90,17 +93,7 @@ def get_json(
                 raw = response.read(policy.max_bytes + 1)
                 if len(raw) > policy.max_bytes:
                     raise ProviderRequestError("Provider response exceeded the configured size limit")
-                try:
-                    payload = json.loads(raw.decode("utf-8"))
-                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-                    raise ProviderRequestError("Provider returned invalid UTF-8 JSON") from exc
-                return JsonResponse(
-                    url=provenance_url,
-                    status=status,
-                    content_type=content_type,
-                    payload=payload,
-                    raw=raw,
-                )
+                return status, content_type, raw
         except HTTPError as exc:
             last_error = exc
             retryable = exc.code == 429 or 500 <= exc.code < 600
@@ -114,3 +107,54 @@ def get_json(
             time.sleep(min(2**attempt, 4))
 
     raise ProviderRequestError("Provider request failed after bounded retries") from last_error
+
+
+def get_json(
+    url: str,
+    *,
+    policy: HttpPolicy,
+    params: Mapping[str, str | int | float] | None = None,
+    headers: Mapping[str, str] | None = None,
+    sensitive_params: frozenset[str] = frozenset(),
+) -> JsonResponse:
+    _validated_url(url, policy)
+    request_params = dict(params or {})
+    request_url = _query_url(url, request_params)
+    provenance_url = _query_url(url, request_params, redact=sensitive_params)
+    status, content_type, raw = _read_response(
+        request_url,
+        policy=policy,
+        headers=headers,
+    )
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ProviderRequestError("Provider returned invalid UTF-8 JSON") from exc
+    return JsonResponse(
+        url=provenance_url,
+        status=status,
+        content_type=content_type,
+        payload=payload,
+        raw=raw,
+    )
+
+
+def get_text(
+    url: str,
+    *,
+    policy: HttpPolicy,
+    headers: Mapping[str, str] | None = None,
+) -> TextResponse:
+    _validated_url(url, policy)
+    status, content_type, raw = _read_response(url, policy=policy, headers=headers)
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ProviderRequestError("Provider returned invalid UTF-8 text") from exc
+    return TextResponse(
+        url=url,
+        status=status,
+        content_type=content_type,
+        text=text,
+        raw=raw,
+    )
