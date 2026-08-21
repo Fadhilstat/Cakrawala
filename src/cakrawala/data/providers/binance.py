@@ -4,7 +4,6 @@ from cakrawala.data.http import HttpPolicy, get_json
 from cakrawala.data.provenance import build_provenance
 from cakrawala.data.providers.base import ProviderResult
 
-
 BASE_URL = "https://data-api.binance.vision/api/v3"
 
 

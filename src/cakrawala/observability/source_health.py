@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Callable
+from datetime import UTC, datetime
 
 
 @dataclass(frozen=True)
@@ -14,7 +14,7 @@ class HealthCheck:
 
 
 def run_check(name: str, check: Callable[[], object]) -> HealthCheck:
-    checked_at = datetime.now(timezone.utc)
+    checked_at = datetime.now(UTC)
     try:
         check()
     except Exception as exc:

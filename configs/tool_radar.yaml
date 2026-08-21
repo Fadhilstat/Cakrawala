@@ -1,0 +1,47 @@
+as_of: 2026-08-21
+review_policy:
+  install_automatically: false
+  production_default: observe_only
+  sandbox_required_before_use: true
+  require_primary_source: true
+  require_recent_activity: true
+  require_security_review: true
+  execution_policy_override_allowed: false
+
+items:
+  - name: Freqtrade
+    category: crypto trading bot
+    status: sandbox candidate
+    latest_verified_activity: "New release 2026.7 pull request opened 2026-07-31"
+    source: https://github.com/freqtrade/freqtrade
+    rationale: "Mature open-source bot with active 2026 development. Evaluate only in an isolated sandbox before any integration."
+    risks:
+      - exchange credential exposure
+      - strategy overfitting
+      - unsafe third-party strategies
+      - execution mismatch between backtest and live trading
+
+  - name: Hummingbot
+    category: crypto execution framework
+    status: sandbox candidate
+    latest_verified_activity: "Core repository active in July 2026; Gateway v2.16.0 released 2026-07-29"
+    source: https://github.com/hummingbot/hummingbot
+    supporting_source: https://github.com/hummingbot/gateway/releases
+    rationale: "Actively maintained execution framework. Gateway security hardening is relevant, but production use still requires connector and wallet review."
+    risks:
+      - exchange and wallet credential exposure
+      - connector-specific execution risk
+      - high-frequency operational complexity
+      - network and RPC dependency risk
+
+  - name: NautilusTrader
+    category: event-driven trading platform
+    status: observe and sandbox
+    latest_verified_activity: "v1.230.0 Beta released 2026-06-29"
+    source: https://github.com/nautechsystems/nautilus_trader/releases
+    rationale: "Strong research and execution architecture with active 2026 releases. Beta status means integration should remain isolated until compatibility is proven."
+    risks:
+      - beta API changes
+      - adapter-specific behavior
+      - operational complexity
+      - live execution configuration risk

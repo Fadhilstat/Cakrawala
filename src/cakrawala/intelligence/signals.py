@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 
 
@@ -29,7 +29,8 @@ class SignalPolicy:
     stale_after_minutes: int = 180
 
 
-def decide_signal(inputs: SignalInputs, policy: SignalPolicy = SignalPolicy()) -> Signal:
+def decide_signal(inputs: SignalInputs, policy: SignalPolicy | None = None) -> Signal:
+    active_policy = policy or SignalPolicy()
     required = (
         inputs.direction_probability,
         inputs.forecast_volatility,
@@ -43,8 +44,9 @@ def decide_signal(inputs: SignalInputs, policy: SignalPolicy = SignalPolicy()) -
     assert generated_at is not None
     if generated_at.tzinfo is None:
         return Signal.NO_SIGNAL
-    age_minutes = (datetime.now(timezone.utc) - generated_at.astimezone(timezone.utc)).total_seconds() / 60
-    if age_minutes < 0 or age_minutes > policy.stale_after_minutes:
+    age_seconds = (datetime.now(UTC) - generated_at.astimezone(UTC)).total_seconds()
+    age_minutes = age_seconds / 60
+    if age_minutes < 0 or age_minutes > active_policy.stale_after_minutes:
         return Signal.NO_SIGNAL
 
     probability = float(inputs.direction_probability)
@@ -52,10 +54,16 @@ def decide_signal(inputs: SignalInputs, policy: SignalPolicy = SignalPolicy()) -
     health = float(inputs.model_health)
     if not 0 <= probability <= 1 or volatility < 0 or not 0 <= health <= 1:
         return Signal.NO_SIGNAL
-    if health < policy.minimum_model_health:
+    if health < active_policy.minimum_model_health:
         return Signal.NO_SIGNAL
-    if probability >= policy.buy_probability_min and volatility <= policy.max_forecast_volatility:
+    if (
+        probability >= active_policy.buy_probability_min
+        and volatility <= active_policy.max_forecast_volatility
+    ):
         return Signal.BUY
-    if probability <= policy.avoid_probability_max or volatility > policy.max_forecast_volatility:
+    if (
+        probability <= active_policy.avoid_probability_max
+        or volatility > active_policy.max_forecast_volatility
+    ):
         return Signal.AVOID
     return Signal.HOLD
