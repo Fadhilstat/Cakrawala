@@ -13,7 +13,13 @@ class MarketSession:
     is_open: bool
 
 
-def _session(name: str, timezone_name: str, start_hour: int, end_hour: int, now: datetime) -> MarketSession:
+def _session(
+    name: str,
+    timezone_name: str,
+    start_hour: int,
+    end_hour: int,
+    now: datetime,
+) -> MarketSession:
     local = now.astimezone(ZoneInfo(timezone_name))
     weekday_open = local.weekday() < 5
     if start_hour < end_hour:
