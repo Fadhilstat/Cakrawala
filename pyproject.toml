@@ -44,6 +44,9 @@ app = ["assets/*.css"]
 configs = ["*.yaml"]
 "data.ai_briefs" = ["*.json"]
 
+[tool.vercel]
+entrypoint = "main:app"
+
 [tool.pytest.ini_options]
 pythonpath = ["src", "."]
 testpaths = ["tests"]
