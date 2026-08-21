@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -9,6 +11,7 @@ from cakrawala.models.direction_baseline import (
     build_direction_dataset,
     walk_forward_backtest,
 )
+from scripts.run_model_backtest import _frame_from_klines
 
 
 def _market_frame(rows: int = 900) -> pd.DataFrame:
@@ -29,6 +32,38 @@ def _market_frame(rows: int = 900) -> pd.DataFrame:
             "volume": volume,
         }
     )
+
+
+def _millis(value: str) -> int:
+    return int(pd.Timestamp(value).timestamp() * 1000)
+
+
+def test_binance_parser_excludes_incomplete_daily_candle() -> None:
+    fetched_at = datetime(2026, 8, 21, 18, 42, tzinfo=UTC)
+    rows: list[list[object]] = [
+        [
+            _millis("2026-08-20T00:00:00Z"),
+            "100",
+            "105",
+            "95",
+            "103",
+            "10",
+            _millis("2026-08-20T23:59:59.999Z"),
+        ],
+        [
+            _millis("2026-08-21T00:00:00Z"),
+            "103",
+            "108",
+            "101",
+            "106",
+            "11",
+            _millis("2026-08-21T23:59:59.999Z"),
+        ],
+    ]
+    frame = _frame_from_klines(rows, fetched_at)
+    assert len(frame) == 1
+    assert frame["open_time"].iloc[0] == pd.Timestamp("2026-08-20T00:00:00Z")
+    assert frame["close_time"].iloc[0] < pd.Timestamp(fetched_at)
 
 
 def test_direction_dataset_uses_only_completed_history() -> None:
