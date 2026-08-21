@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+import psycopg
 import streamlit as st
 
 from cakrawala.data.providers.binance import fetch_klines
@@ -57,6 +58,37 @@ def load_market() -> dict[str, Any]:
         "fetched_at": result.provenance.fetched_at.isoformat(),
         "source_url": result.provenance.source_url,
     }
+
+
+def load_personal_transactions(
+    database_url: str,
+    owner_sub: str,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    """Read owner data directly. Private rows are deliberately not shared-cached."""
+    if not 1 <= limit <= 100:
+        raise ValueError("limit must be between 1 and 100")
+    query = """
+        SELECT asset, side, quantity, price, executed_at
+        FROM portfolio_transactions
+        WHERE owner_sub = %s
+        ORDER BY executed_at DESC
+        LIMIT %s
+    """
+    with psycopg.connect(database_url, connect_timeout=8) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(query, (owner_sub, limit))
+            rows = cursor.fetchall()
+    return [
+        {
+            "asset": row[0],
+            "side": row[1],
+            "quantity": row[2],
+            "price": row[3],
+            "executed_at": row[4],
+        }
+        for row in rows
+    ]
 
 
 def render_source_error(source_name: str, exc: Exception) -> None:
@@ -116,14 +148,15 @@ def render_market(payload: dict[str, Any]) -> None:
     )
 
 
-def owner_auth_config() -> tuple[bool, str | None]:
+def owner_runtime_config() -> tuple[bool, str | None, str | None]:
     try:
         auth = st.secrets.get("auth", {})
         cakrawala = st.secrets.get("cakrawala", {})
     except FileNotFoundError:
-        return False, None
+        return False, None, None
 
     owner_sub = cakrawala.get("owner_sub")
+    database_url = cakrawala.get("database_personal_url")
     required_auth = (
         "redirect_uri",
         "cookie_secret",
@@ -132,12 +165,16 @@ def owner_auth_config() -> tuple[bool, str | None]:
         "server_metadata_url",
     )
     configured = bool(owner_sub) and all(auth.get(key) for key in required_auth)
-    return configured, str(owner_sub) if owner_sub else None
+    return (
+        configured,
+        str(owner_sub) if owner_sub else None,
+        str(database_url) if database_url else None,
+    )
 
 
 def render_personal_mode() -> None:
     st.subheader("Owner research terminal")
-    configured, owner_sub = owner_auth_config()
+    configured, owner_sub, database_url = owner_runtime_config()
     if not configured:
         st.warning(
             "Personal Mode belum diaktifkan. Konfigurasi OIDC dan identitas owner harus tersedia "
@@ -163,10 +200,25 @@ def render_personal_mode() -> None:
         "Signal adalah output riset deterministik dari policy yang terversi dan prediksi tersimpan. "
         "Model bahasa boleh menjelaskan evidence, tetapi tidak boleh membuat atau mengganti signal."
     )
-    st.info(
-        "Private portfolio storage tetap harus dikonfigurasi sebelum transaksi atau watchlist "
-        "ditampilkan. Terminal tidak akan memakai penyimpanan publik sebagai fallback."
-    )
+
+    st.subheader("Portfolio ledger")
+    if not database_url:
+        st.warning(
+            "Database privat belum dikonfigurasi. Terminal tidak memakai database publik sebagai "
+            "fallback untuk data owner."
+        )
+    else:
+        try:
+            transactions = load_personal_transactions(database_url, owner_sub)
+        except Exception as exc:
+            st.warning("Portfolio ledger tidak bisa dimuat. Data pribadi tetap ditutup.")
+            st.caption(f"Status teknis: {type(exc).__name__}")
+        else:
+            if transactions:
+                st.dataframe(transactions, use_container_width=True, hide_index=True)
+            else:
+                st.info("Belum ada transaksi pada ledger owner.")
+
     st.caption("Research use only. Model outputs and market signals are uncertain, not guarantees.")
 
 
