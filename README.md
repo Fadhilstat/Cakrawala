@@ -6,9 +6,9 @@ Cakrawala is an open-data intelligence terminal built to make economic, market, 
 and model evidence easier to inspect without hiding uncertainty behind one opaque score. It is a
 public information product and an owner research tool, not a dashboard built only for screenshots.
 
-The normalized MVP source tree is published in this repository. Live production deployment still
-requires external database, identity, and hosting credentials, so this README does not claim a live
-URL until those services are actually provisioned and smoke-tested.
+The normalized MVP source tree is published in this repository. Public Mode can run without private
+credentials and reads approved public sources directly. A live production URL is still not claimed
+until the Streamlit deployment itself has been created and smoke-tested.
 
 ## What it answers
 
@@ -26,7 +26,8 @@ exact host allowlists, bounded timeouts and retries, response-size limits, conte
 provenance hashes, schema validation, and quarantine before data is eligible for analytical use.
 
 Missing, stale, rejected, or unhealthy evidence produces `NO SIGNAL`. The language model may explain
-a stored signal but cannot create, upgrade, downgrade, or replace it.
+a stored signal but cannot create, upgrade, downgrade, or replace it. Credential-bearing query
+parameters are redacted before a source URL is written to provenance metadata.
 
 ## Current source universe
 
@@ -41,6 +42,10 @@ a stored signal but cannot create, upgrade, downgrade, or replace it.
 
 Source interfaces were rechecked on 21 August 2026. See `docs/sources.md` for the approved endpoints
 and attribution requirements.
+
+The first public terminal view deliberately uses sources that do not require credentials: BMKG,
+World Bank, and Binance public market data. BPS and FRED can be enabled later without blocking the
+public portfolio launch.
 
 ## Architecture
 
@@ -84,6 +89,7 @@ migrations/                  raw, public, and personal PostgreSQL schemas
 src/cakrawala/data/          secure provider boundary and provenance
 src/cakrawala/models/        promotion policy
 src/cakrawala/intelligence/  deterministic research signals
+src/cakrawala/personal/      owner-only database access
 src/cakrawala/terminal/      owner authorization boundary
 src/cakrawala/observability/ source health
 scripts/                     QA, source checks, deployment preflight
@@ -112,27 +118,42 @@ pip install -r requirements.txt
 streamlit run app/streamlit_app.py
 ```
 
+Public Mode caches only public-source responses with short TTLs. A manual refresh clears that public
+cache. When a source is unavailable, the terminal displays the failure instead of inventing data.
+
 ## Public and Personal boundary
 
-Public Mode can be anonymous and must use read-only public data access. Personal Mode fails closed
-until Google OIDC and private database roles are configured. Authorization is based on the stable
-OIDC `sub` value after cryptographic token verification. Email is display metadata, not an
-authorization key.
+Public Mode is anonymous. Personal Mode uses Streamlit's native OIDC flow and remains unavailable
+until Google auth settings and a stable owner `sub` are stored in the server-side secret store. An
+authenticated account whose `sub` does not match the configured owner is denied.
 
-The portfolio transaction ledger is append-only at the database layer. Public and personal data do
-not share credentials or caches.
+Owner portfolio reads use a separate PostgreSQL connection and are deliberately not stored in the
+shared Streamlit data cache. The transaction ledger is append-only at the database layer. Public and
+personal data do not share credentials or cache paths.
+
+A placeholder secret structure is available in `.streamlit/secrets.toml.example`. Real secrets must
+never be committed.
 
 ## Deployment
 
-The intended no-mandatory-cost portfolio deployment uses GitHub, Streamlit Community Cloud, and a
-free PostgreSQL service when its current limits fit the project. Deployment credentials stay in the
-hosting control plane and are never committed. Run:
+The no-mandatory-cost portfolio launch path uses GitHub and Streamlit Community Cloud. Public Mode
+can be deployed first without a database. Personal Mode can then use a private PostgreSQL service
+such as Neon's Free Plan when its current limits fit the project.
+
+Run the public preflight:
 
 ```bash
-python scripts/preflight_deployment.py
+python scripts/preflight_deployment.py --mode public
+python scripts/check_sources.py
 ```
 
-Then follow `docs/runbooks/deployment.md`.
+Before enabling Personal Mode, run:
+
+```bash
+python scripts/preflight_deployment.py --mode personal
+```
+
+Then follow `docs/runbooks/deployment.md` for the OIDC, database, and smoke-test sequence.
 
 ## Attribution and limitations
 
