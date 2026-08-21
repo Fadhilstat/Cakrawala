@@ -8,6 +8,8 @@ from authlib.integrations.flask_client import OAuth
 from flask import Flask, redirect, session, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from cakrawala.web.personal_forex import install_personal_forex_route
+
 
 @dataclass(frozen=True)
 class WebAuthConfig:
@@ -72,13 +74,14 @@ def install_owner_auth(server: Flask) -> WebAuthConfig | None:
         session["owner_verified"] = subject == config.owner_sub
         session["user_sub"] = subject
         session["display_name"] = str(userinfo.get("name", "")).strip()
-        return redirect("/")
+        return redirect("/personal/forex")
 
     @server.get("/logout")
     def logout() -> Any:
         session.clear()
         return redirect("/")
 
+    install_personal_forex_route(server)
     return config
 
 
