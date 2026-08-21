@@ -1,0 +1,7 @@
+ALTER TABLE trading_journal
+ADD COLUMN IF NOT EXISTS setup_name TEXT,
+ADD COLUMN IF NOT EXISTS emotion TEXT,
+ADD COLUMN IF NOT EXISTS mistake_tag TEXT,
+ADD COLUMN IF NOT EXISTS execution_quality SMALLINT
+    CHECK (execution_quality BETWEEN 1 AND 5),
+ADD COLUMN IF NOT EXISTS screenshot_url TEXT;
