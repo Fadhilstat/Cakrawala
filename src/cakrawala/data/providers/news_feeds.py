@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from xml.etree import ElementTree
 
 from cakrawala.data.http import HttpPolicy, ProviderRequestError, get_text
-
 
 FED_PRESS_RELEASES = "https://www.federalreserve.gov/feeds/press_all.xml"
 BIS_PRESS_RELEASES = "https://www.bis.org/doclist/all_pressrels.rss"
@@ -32,8 +31,8 @@ def _parse_datetime(value: str | None) -> datetime | None:
         except ValueError:
             return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _clean_text(value: str | None) -> str:
@@ -94,9 +93,11 @@ def fetch_bis_press_releases(limit: int = 10) -> list[NewsItem]:
 
 
 def fetch_macro_news(limit_per_source: int = 8) -> list[NewsItem]:
-    items = fetch_fed_press_releases(limit_per_source) + fetch_bis_press_releases(limit_per_source)
+    items = fetch_fed_press_releases(limit_per_source)
+    items += fetch_bis_press_releases(limit_per_source)
+    oldest = datetime.min.replace(tzinfo=UTC)
     return sorted(
         items,
-        key=lambda item: item.published_at or datetime.min.replace(tzinfo=timezone.utc),
+        key=lambda item: item.published_at or oldest,
         reverse=True,
     )
