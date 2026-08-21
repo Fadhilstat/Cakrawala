@@ -7,7 +7,6 @@ import streamlit as st
 
 from cakrawala.terminal.public_data import market_risk_stats
 
-
 _PUBLIC_SOURCE_KEYS = (
     "earthquake",
     "population",
