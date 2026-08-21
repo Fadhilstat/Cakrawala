@@ -156,10 +156,37 @@ def _render_trade_plans(database_url: str, owner_sub: str) -> None:
 
 def _render_journal(database_url: str, owner_sub: str) -> None:
     st.markdown("### Post-trade journal")
+    st.caption(
+        "Catat hasil, kualitas eksekusi, emosi, dan kesalahan tanpa mengubah history lama."
+    )
     with st.form("journal_form"):
         asset = st.text_input("Journal asset", value="BTCUSDT")
         direction = st.selectbox("Executed direction", ["LONG", "SHORT"])
+        setup_name = st.text_input("Setup or playbook name")
         result_r = st.number_input("Result (R)", value=0.0, step=0.25)
+        col1, col2 = st.columns(2)
+        emotion = col1.selectbox(
+            "Dominant emotion",
+            ["Calm", "Confident", "Fear", "FOMO", "Frustrated", "Revenge urge"],
+        )
+        mistake_tag = col2.selectbox(
+            "Primary mistake",
+            [
+                "None",
+                "Late entry",
+                "Early exit",
+                "Oversized",
+                "Ignored event risk",
+                "Chased price",
+                "Broke invalidation",
+                "No written plan",
+            ],
+        )
+        execution_quality = st.slider("Execution quality", 1, 5, 3)
+        screenshot_url = st.text_input(
+            "Screenshot URL (optional)",
+            placeholder="https://...",
+        )
         notes = st.text_area("What happened?")
         lesson = st.text_area("What will I repeat or change?")
         submitted = st.form_submit_button("Add journal entry")
@@ -174,6 +201,11 @@ def _render_journal(database_url: str, owner_sub: str) -> None:
                 notes=notes,
                 lesson=lesson,
                 executed_at=datetime.now(UTC),
+                setup_name=setup_name,
+                emotion=emotion,
+                mistake_tag=mistake_tag,
+                execution_quality=execution_quality,
+                screenshot_url=screenshot_url,
             )
         except Exception as exc:
             st.error(f"Journal tidak tersimpan: {type(exc).__name__}")
@@ -186,10 +218,33 @@ def _render_journal(database_url: str, owner_sub: str) -> None:
     except Exception as exc:
         st.caption(f"Journal history unavailable: {type(exc).__name__}")
         return
-    if entries:
-        frame = pd.DataFrame([asdict(item) for item in entries])
-        st.dataframe(frame, use_container_width=True, hide_index=True)
-        st.metric("Average result", f"{frame['result_r'].astype(float).mean():+.2f} R")
+    if not entries:
+        st.info("Belum ada journal entry.")
+        return
+
+    frame = pd.DataFrame([asdict(item) for item in entries])
+    st.dataframe(frame, use_container_width=True, hide_index=True)
+    results = frame["result_r"].astype(float)
+    quality = pd.to_numeric(frame["execution_quality"], errors="coerce")
+    metrics = st.columns(4)
+    metrics[0].metric("Average result", f"{results.mean():+.2f} R")
+    metrics[1].metric("Win rate", f"{(results > 0).mean() * 100:.1f}%")
+    metrics[2].metric(
+        "Average execution",
+        f"{quality.mean():.2f}/5" if quality.notna().any() else "N/A",
+    )
+    mistakes = frame["mistake_tag"].fillna("None")
+    mistake_rate = float((mistakes != "None").mean() * 100)
+    metrics[3].metric("Tagged mistake rate", f"{mistake_rate:.1f}%")
+
+    mistake_counts = mistakes[mistakes != "None"].value_counts()
+    if not mistake_counts.empty:
+        st.markdown("#### Recurring mistakes")
+        st.dataframe(
+            mistake_counts.rename_axis("mistake").reset_index(name="count"),
+            use_container_width=True,
+            hide_index=True,
+        )
 
 
 def _render_playbook(database_url: str, owner_sub: str) -> None:

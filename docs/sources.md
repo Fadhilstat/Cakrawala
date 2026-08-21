@@ -12,14 +12,18 @@ untrusted until transport, content type, size, schema, and quality checks pass.
 | FRED | `https://api.stlouisfed.org` | API key | Follow FRED API terms and attribution |
 | Binance Spot market data | `https://data-api.binance.vision/api/v3` | None for market data | Price and volume evidence only |
 | Binance USD-M futures | `https://fapi.binance.com` | None for public market data | Long-short ratio, open interest, mark price, and funding context |
+| ECB FX reference rates | `https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist-90d.xml` | None | Daily working-day reference rates for research context, not transaction pricing |
 | CFTC TFF Futures Only | `https://publicreporting.cftc.gov/resource/gpe5-46if.json` | None | Weekly institutional positioning, not intraday sentiment |
 | BLS release calendar | `https://www.bls.gov/schedule/news_release/bls.ics` | None | Official scheduled U.S. labor and inflation release times |
 | Federal Reserve press releases | `https://www.federalreserve.gov/feeds/press_all.xml` | None | Official policy and regulatory news RSS |
 | BIS press releases | `https://www.bis.org/doclist/all_pressrels.rss` | None | Official global central-bank context RSS |
+| ECB press releases | `https://www.ecb.europa.eu/rss/press.html` | None | Official ECB press-release RSS |
 
 ## News evidence policy
 
-The News & Research workspace ingests official Federal Reserve and BIS press-release feeds.
+The News & Research workspace ingests official Federal Reserve, BIS, and ECB press-release feeds.
+Each feed is isolated from the others. If one source is temporarily unavailable, healthy sources
+remain visible; the entire news workspace fails only when all configured macro feeds are unavailable.
 Headlines are tagged with transparent keyword rules for themes such as monetary policy, liquidity,
 financial stability, regulation, and digital assets. The attention score is a reading-priority aid,
 not a sentiment forecast and not a trade direction.
@@ -27,6 +31,18 @@ not a sentiment forecast and not a trade direction.
 Bank Indonesia remains an approved official source watch. Its public pages were accessible when
 rechecked on 21 August 2026, but Cakrawala does not add a fragile scraper merely to increase the
 headline count. A stable machine-readable interface should be approved before automated ingestion.
+
+## FX reference-rate policy
+
+Currency Strength uses official European Central Bank euro foreign-exchange reference rates. The
+ECB publishes the reference set on working days and states that the rates are intended for
+information purposes. Cakrawala therefore uses them only to compare recent currency movement versus
+the euro. They are not displayed as executable FX prices and are not used to estimate slippage or
+broker fills.
+
+The strength transform is transparent. ECB rates are quoted as units of each currency per euro, so
+Cakrawala reverses the sign of the percentage rate change when expressing whether that currency has
+strengthened or weakened against the euro. The raw reference date remains visible in the workspace.
 
 ## Positioning evidence policy
 
@@ -68,6 +84,9 @@ Cakrawala's model-health, freshness, risk, authorization, or deterministic signa
 ## Attribution
 
 BMKG must be shown as the source wherever its data is displayed.
+
+ECB FX reference rates must be described as reference information rather than executable market
+prices.
 
 FRED notice: This product uses the FRED API but is not endorsed or certified by the Federal Reserve
 Bank of St. Louis.

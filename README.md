@@ -15,16 +15,19 @@ separate private database are configured.
 ## Trading research workflow
 
 The terminal follows a practical sequence: **context -> plan -> risk gate -> execution readiness ->
-review**.
+review -> improve**.
 
 ### Public Mode
 
 - **Overview**: source health, BTC movement, momentum, volatility, futures crowding, news watch,
   inflation, and BMKG context.
-- **News & Research**: searchable official Federal Reserve and BIS headlines with transparent
-  reading-priority tags. Attention is not a price-direction forecast.
-- **Positioning**: Binance public futures crowding plus CFTC institutional TFF positioning. Retail
+- **News & Research**: searchable official Federal Reserve, BIS, and ECB headlines with transparent
+  reading-priority tags. One failed feed does not hide the healthy feeds. Attention is not a
+  price-direction forecast.
+- **Positioning**: Binance public futures crowding plus CFTC institutional TFF positioning. Crowd
   and institutional horizons stay separate.
+- **Market Desk**: ECB currency-strength context plus public BTC, ETH, BNB, and SOL breadth,
+  volatility, correlation, and a transparent research-regime rule.
 - **Market Structure**: 90-day BTC/USDT candlesticks, returns, range, momentum, realized volatility,
   drawdown, and volume.
 - **Macro & Events**: Indonesia/global macro context plus official BLS scheduled release risk.
@@ -32,6 +35,8 @@ review**.
   board built from price, volatility, crowding, funding, and news evidence.
 - **Risk Tools**: risk-budget position sizing, reward/risk calculation, historical expectancy, and a
   deterministic equity illustration.
+- **Trader Toolkit**: pip or tick value, position PnL, compound illustration, prop-style drawdown
+  budget, and a pre-trade checklist. Calculations are local and do not send orders.
 - **Bot & Tool Radar**: weekly primary-source review of actively maintained open trading tools. A
   tool can become a sandbox candidate but is never installed or trusted automatically.
 - **Execution Readiness**: source, news, model-promotion, freshness, and authorization gates. If the
@@ -41,12 +46,14 @@ review**.
 
 After owner authentication and private storage are configured, Personal Mode adds:
 
-- private portfolio ledger
-- immutable trade plans with thesis and invalidation
-- post-trade journal with results measured in R
-- reusable playbook entries
+- private portfolio ledger;
+- immutable trade plans with thesis and invalidation;
+- structured post-trade journal with result in R, setup, emotion, mistake tag, execution quality,
+  lesson, and optional HTTPS screenshot reference;
+- journal review metrics for win rate, average R, execution quality, and recurring mistakes;
+- reusable playbook entries.
 
-Private rows do not enter the shared public cache.
+Private rows do not enter the shared public cache. Historical research rows remain append-only.
 
 ## Free and traceable data path
 
@@ -60,13 +67,17 @@ The public experience is designed around interfaces that do not require a paid s
 | Macro series | FRED | Optional server-side API key |
 | Spot market structure | Binance | Public market-data-only API |
 | Futures crowding | Binance USD-M Futures | Public long-short, open-interest, and funding endpoints |
+| Currency reference context | European Central Bank | Official working-day FX reference-rate history |
 | Institutional positioning | CFTC | Public TFF Futures-Only dataset |
 | Scheduled U.S. event risk | BLS | Official iCalendar release schedule |
 | U.S. policy/regulation news | Federal Reserve | Official RSS |
-| Global central-bank context | BIS | Official RSS |
+| Global central-bank context | BIS and ECB | Official RSS |
 
 Source interfaces were rechecked on 21 August 2026. See `docs/sources.md` for endpoint, attribution,
 and evidence-policy details.
+
+ECB reference rates are used for information and relative currency context only. They are not
+presented as executable FX prices.
 
 ## Evidence before signal
 
@@ -74,9 +85,13 @@ Every external response is untrusted at the network boundary. Cakrawala uses HTT
 exact host allowlists, bounded timeouts and retries, response-size limits, content-type checks,
 provenance hashes, schema validation, and explicit failure handling.
 
+Public providers are loaded independently. An optional provider failure is surfaced as unavailable
+rather than allowed to crash the entire terminal. CI also imports the Streamlit deployment path so
+startup import failures are caught before merge.
+
 The terminal distinguishes:
 
-1. **descriptive evidence**, such as price, volatility, crowding, and COT;
+1. **descriptive evidence**, such as price, volatility, crowding, COT, and currency context;
 2. **research bias**, which is explainable context and not a trade instruction;
 3. **model evidence**, which must pass walk-forward, point-in-time, health, and benchmark gates;
 4. **deterministic signal policy**, which is the only layer allowed to return BUY, HOLD, AVOID, or
@@ -91,6 +106,10 @@ Cakrawala studies useful workflow ideas visible in public trading products, incl
 it does not copy proprietary research, paid datasets, private signals, scoring logic, trade ideas,
 branding, screenshots, or visual assets. Free equivalents are independently implemented from public
 or official sources. See `docs/trading-feature-map.md`.
+
+Cakrawala deliberately does not fabricate rate-cut probabilities merely to match another terminal.
+A probability panel should be added only when its free futures or OIS inputs, timing, methodology,
+and freshness can be defended and reproduced.
 
 ## Bot and tool research
 
@@ -115,7 +134,7 @@ app/                         Streamlit entrypoint
 configs/                     providers, schedules, models, signals, tool radar
 migrations/                  raw, public, and private PostgreSQL schemas
 src/cakrawala/data/          secure provider adapters and provenance
-src/cakrawala/intelligence/  news, risk, bias, sessions, model and signal policy
+src/cakrawala/intelligence/  news, risk, trader tools, sessions, model and signal policy
 src/cakrawala/personal/      owner-only database access
 src/cakrawala/terminal/      public and private interface composition
 src/cakrawala/observability/ source health
@@ -133,6 +152,7 @@ python -m pip install --upgrade pip
 pip install -e '.[dev]'
 python -m compileall -q src scripts app
 python scripts/check_no_em_dash.py
+python -c "from cakrawala.terminal.enhanced_ui import run; assert callable(run)"
 ruff check .
 pytest
 ```
@@ -174,7 +194,9 @@ Personal preflight:
 python scripts/preflight_deployment.py --mode personal
 ```
 
-See `docs/runbooks/deployment.md` before enabling Personal Mode.
+See `docs/runbooks/deployment.md` before enabling Personal Mode. Personal databases must apply the
+personal migrations in order, including `003_journal_review_fields.sql` before using structured
+journal review fields.
 
 ## Limitations
 
@@ -182,7 +204,9 @@ Cakrawala is a research system, not a guarantee of returns. Public APIs can beco
 provider schemas can change, historical relationships can fail, and execution conditions can differ
 from research assumptions. Market sessions are timezone-aware approximations and do not replace an
 exchange holiday calendar. The BLS calendar covers scheduled BLS releases, not every global macro
-event. COT is weekly evidence, not a live positioning feed.
+event. COT is weekly evidence, not a live positioning feed. The current correlation and regime desk
+uses a small public crypto universe and should be interpreted as context rather than full cross-asset
+coverage.
 
 BMKG attribution must remain visible wherever BMKG data is displayed.
 
