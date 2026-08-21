@@ -171,7 +171,8 @@ def render_research_desk(snapshot: dict[str, Any]) -> None:
 def render_risk_tools() -> None:
     st.subheader("Risk & Position Toolkit")
     st.write(
-        "Hitung ukuran posisi dari risiko yang bersedia ditanggung. Calculator tidak mengirim order."
+        "Hitung ukuran posisi dari risiko yang bersedia ditanggung. "
+        "Calculator tidak mengirim order."
     )
 
     left, right = st.columns([1, 1])
@@ -231,5 +232,6 @@ def render_risk_tools() -> None:
         )
         st.plotly_chart(figure, use_container_width=True)
         st.caption(
-            "The curve is a deterministic expectancy illustration, not a forecast of actual returns."
+            "The curve is a deterministic expectancy illustration, not a forecast of "
+            "actual returns."
         )
