@@ -8,3 +8,11 @@ roles:
   expected_return: null
   direction_probability: null
   volatility: null
+validation_candidates:
+  logistic_direction_v1:
+    role: direction_probability
+    status: research_only
+    promoted: false
+    latest_verified_run: '2026-08-21'
+    promotion_reason: benchmark_improvement_below_gate
+    methodology: docs/model-validation.md
