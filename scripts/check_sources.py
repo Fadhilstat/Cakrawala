@@ -18,7 +18,7 @@ def main() -> int:
         run_check("binance_market_data", lambda: fetch_klines("BTCUSDT", limit=2)),
         run_check("binance_futures", lambda: fetch_futures_positioning("BTCUSDT")),
         run_check("ecb_fx_reference_rates", fetch_currency_strength),
-        run_check("federal_reserve_bis_news", lambda: fetch_macro_news(limit_per_source=2)),
+        run_check("central_bank_news", lambda: fetch_macro_news(limit_per_source=2)),
         run_check("bls_calendar", fetch_bls_calendar),
         run_check("cftc_tff", lambda: fetch_tff_market("EURO FX")),
     ]
