@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from cakrawala.data.providers.news_feeds import NewsItem
 
@@ -57,10 +57,8 @@ TAG_KEYWORDS: dict[str, tuple[str, ...]] = {
 def _freshness_points(published_at: datetime | None) -> int:
     if published_at is None:
         return 0
-    age_hours = max(
-        (datetime.now(timezone.utc) - published_at.astimezone(timezone.utc)).total_seconds() / 3600,
-        0,
-    )
+    age_seconds = (datetime.now(UTC) - published_at.astimezone(UTC)).total_seconds()
+    age_hours = max(age_seconds / 3600, 0)
     if age_hours <= 24:
         return 3
     if age_hours <= 72:
@@ -81,11 +79,17 @@ def assess_news_item(item: NewsItem) -> NewsAssessment:
     if not tags:
         reason = "Monitor for context. No high-priority macro or risk keyword matched."
     elif "monetary policy" in tags:
-        reason = "Policy-sensitive headline. Check rates, FX, and risk-asset reaction before execution."
+        reason = (
+            "Policy-sensitive headline. Check rates, FX, and risk-asset reaction "
+            "before execution."
+        )
     elif "financial stability" in tags:
         reason = "Risk-sensitive headline. Recheck liquidity, volatility, and exposure limits."
     elif "regulation" in tags:
-        reason = "Regulatory headline. Confirm whether the affected venue or instrument is in scope."
+        reason = (
+            "Regulatory headline. Confirm whether the affected venue or instrument "
+            "is in scope."
+        )
     else:
         reason = "Relevant macro evidence. Compare it with price action and model freshness."
 
@@ -102,8 +106,9 @@ def assess_news_item(item: NewsItem) -> NewsAssessment:
 
 def assess_news(items: list[NewsItem]) -> list[NewsAssessment]:
     assessments = [assess_news_item(item) for item in items]
+    oldest = datetime.min.replace(tzinfo=UTC)
     return sorted(
         assessments,
-        key=lambda item: (item.attention_score, item.published_at or datetime.min.replace(tzinfo=timezone.utc)),
+        key=lambda item: (item.attention_score, item.published_at or oldest),
         reverse=True,
     )
