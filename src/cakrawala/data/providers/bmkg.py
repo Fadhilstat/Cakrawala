@@ -7,7 +7,6 @@ from cakrawala.data.provenance import build_provenance
 from cakrawala.data.providers.base import ProviderResult
 from cakrawala.data.quality import require_mapping
 
-
 EARTHQUAKE_URL = "https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json"
 WEATHER_URL = "https://api.bmkg.go.id/publik/prakiraan-cuaca"
 
