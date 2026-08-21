@@ -1,4 +1,5 @@
 name: Normalize release source
+# One-time trigger after the workflow is available on the default branch.
 
 on:
   push:
