@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 
 import streamlit as st
 
+from cakrawala.terminal.desk_v2 import render_market_desk, render_trader_tools
 from cakrawala.terminal.overview_ui import render_overview
 from cakrawala.terminal.personal_ui import render_personal_workspace
 from cakrawala.terminal.positioning_ui import render_positioning_hub
@@ -26,10 +27,12 @@ _WORKSPACES = (
     "Overview",
     "News & Research",
     "Positioning",
+    "Market Desk",
     "Market Structure",
     "Macro & Events",
     "Research Desk",
     "Risk Tools",
+    "Trader Toolkit",
     "Bot & Tool Radar",
     "Execution Readiness",
 )
@@ -42,6 +45,8 @@ def _render_public_workspace(page: str, snapshot: dict[str, object]) -> None:
         _news_research(snapshot)
     elif page == "Positioning":
         render_positioning_hub(snapshot)
+    elif page == "Market Desk":
+        render_market_desk()
     elif page == "Market Structure":
         _market(snapshot)
     elif page == "Macro & Events":
@@ -54,6 +59,8 @@ def _render_public_workspace(page: str, snapshot: dict[str, object]) -> None:
         render_research_desk(snapshot)
     elif page == "Risk Tools":
         render_risk_tools()
+    elif page == "Trader Toolkit":
+        render_trader_tools()
     elif page == "Bot & Tool Radar":
         _tool_radar()
     else:
