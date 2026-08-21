@@ -116,9 +116,14 @@ def build_direction_dataset(frame: pd.DataFrame) -> pd.DataFrame:
     data["next_close"] = data["close"].shift(-1)
     data["target_up"] = (data["next_close"] > data["next_open"]).astype(float)
     data["next_session_return"] = data["next_close"] / data["next_open"] - 1
-    data = data.dropna(
-        subset=[*FEATURE_COLUMNS, "next_open_time", "next_open", "next_close", "next_session_return"]
-    ).reset_index(drop=True)
+    required_targets = [
+        *FEATURE_COLUMNS,
+        "next_open_time",
+        "next_open",
+        "next_close",
+        "next_session_return",
+    ]
+    data = data.dropna(subset=required_targets).reset_index(drop=True)
     data["target_up"] = data["target_up"].astype(int)
     return data
 
