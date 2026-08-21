@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -12,13 +13,20 @@ from cakrawala.models.direction_baseline import BacktestConfig, walk_forward_bac
 from cakrawala.models.promotion import PromotionEvidence, assess_promotion
 
 
-def _frame_from_klines(rows: list[list[object]]) -> pd.DataFrame:
+def _frame_from_klines(rows: list[list[object]], fetched_at: datetime) -> pd.DataFrame:
     if not rows:
         raise ValueError("Binance kline payload is empty")
+    fetched_timestamp = pd.Timestamp(fetched_at)
+    if fetched_timestamp.tzinfo is None:
+        raise ValueError("fetched_at must include timezone information")
+
     records: list[dict[str, object]] = []
     for row in rows:
-        if len(row) < 6:
+        if len(row) < 7:
             raise ValueError("Binance kline row does not contain the required fields")
+        close_time = pd.to_datetime(int(row[6]), unit="ms", utc=True)
+        if close_time >= fetched_timestamp:
+            continue
         records.append(
             {
                 "open_time": pd.to_datetime(int(row[0]), unit="ms", utc=True),
@@ -27,8 +35,11 @@ def _frame_from_klines(rows: list[list[object]]) -> pd.DataFrame:
                 "low": float(row[3]),
                 "close": float(row[4]),
                 "volume": float(row[5]),
+                "close_time": close_time,
             }
         )
+    if not records:
+        raise ValueError("Binance payload does not contain a completed candle")
     return pd.DataFrame.from_records(records)
 
 
@@ -40,7 +51,10 @@ def main() -> int:
     args = parser.parse_args()
 
     provider_result = fetch_klines(args.symbol, interval="1d", limit=args.limit)
-    frame = _frame_from_klines(provider_result.data)
+    frame = _frame_from_klines(
+        provider_result.data,
+        provider_result.provenance.fetched_at,
+    )
     config = BacktestConfig()
     result = walk_forward_backtest(frame, config)
     promotion = assess_promotion(PromotionEvidence(**result.promotion_inputs))
@@ -53,6 +67,9 @@ def main() -> int:
         "fetched_at": provider_result.provenance.fetched_at.isoformat(),
         "sha256": provider_result.provenance.sha256,
         "byte_count": provider_result.provenance.byte_count,
+        "raw_candle_count": len(provider_result.data),
+        "completed_candle_count": len(frame),
+        "latest_completed_close_time": frame["close_time"].iloc[-1].isoformat(),
     }
     payload["config"] = asdict(config)
     payload["promotion"] = {
