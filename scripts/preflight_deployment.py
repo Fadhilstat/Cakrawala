@@ -6,7 +6,6 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-
 PERSONAL_REQUIREMENTS = (
     ("auth.redirect_uri", "auth", "redirect_uri", "AUTH_REDIRECT_URI"),
     ("auth.cookie_secret", "auth", "cookie_secret", "AUTH_COOKIE_SECRET"),
