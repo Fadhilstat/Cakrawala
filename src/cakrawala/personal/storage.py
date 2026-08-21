@@ -37,6 +37,11 @@ class JournalEntry:
     notes: str
     lesson: str
     executed_at: datetime
+    setup_name: str | None
+    emotion: str | None
+    mistake_tag: str | None
+    execution_quality: int | None
+    screenshot_url: str | None
 
 
 @dataclass(frozen=True)
@@ -54,6 +59,17 @@ def _validate_access(database_url: str, owner_sub: str) -> None:
         raise ValueError("database_url is required")
     if not owner_sub or len(owner_sub) > 255:
         raise ValueError("owner_sub is invalid")
+
+
+def _optional_text(value: str | None, *, max_length: int = 500) -> str | None:
+    if value is None:
+        return None
+    cleaned = value.strip()
+    if not cleaned:
+        return None
+    if len(cleaned) > max_length:
+        raise ValueError("optional journal field is too long")
+    return cleaned
 
 
 def list_portfolio_transactions(
@@ -170,16 +186,29 @@ def add_journal_entry(
     notes: str,
     lesson: str,
     executed_at: datetime,
+    setup_name: str | None = None,
+    emotion: str | None = None,
+    mistake_tag: str | None = None,
+    execution_quality: int | None = None,
+    screenshot_url: str | None = None,
 ) -> None:
     _validate_access(database_url, owner_sub)
     if direction not in {"LONG", "SHORT"}:
         raise ValueError("direction is invalid")
     if not asset.strip() or not notes.strip() or not lesson.strip():
         raise ValueError("asset, notes, and lesson are required")
+    if execution_quality is not None and not 1 <= execution_quality <= 5:
+        raise ValueError("execution_quality must be between 1 and 5")
+
+    clean_screenshot = _optional_text(screenshot_url, max_length=1000)
+    if clean_screenshot and not clean_screenshot.startswith("https://"):
+        raise ValueError("screenshot_url must use HTTPS")
+
     query = """
         INSERT INTO trading_journal (
-            owner_sub, asset, direction, result_r, notes, lesson, executed_at
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+            owner_sub, asset, direction, result_r, notes, lesson, executed_at,
+            setup_name, emotion, mistake_tag, execution_quality, screenshot_url
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
     values = (
         owner_sub,
@@ -189,6 +218,11 @@ def add_journal_entry(
         notes.strip(),
         lesson.strip(),
         executed_at,
+        _optional_text(setup_name),
+        _optional_text(emotion),
+        _optional_text(mistake_tag),
+        execution_quality,
+        clean_screenshot,
     )
     with psycopg.connect(database_url, connect_timeout=8) as connection:
         with connection.cursor() as cursor:
@@ -204,7 +238,8 @@ def list_journal_entries(
 ) -> list[JournalEntry]:
     _validate_access(database_url, owner_sub)
     query = """
-        SELECT asset, direction, result_r, notes, lesson, executed_at
+        SELECT asset, direction, result_r, notes, lesson, executed_at,
+               setup_name, emotion, mistake_tag, execution_quality, screenshot_url
         FROM trading_journal
         WHERE owner_sub = %s
         ORDER BY executed_at DESC
