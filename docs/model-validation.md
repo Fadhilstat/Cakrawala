@@ -63,9 +63,27 @@ training-history class-frequency baseline. Relative Brier improvement was about 
 The promotion gate therefore returned **FAIL** with reason
 `benchmark_improvement_below_gate`.
 
-That result is intentional evidence that the governance layer works. `logistic_direction_v1` remains
-**research-only** and is not connected to Cakrawala's deterministic BUY, HOLD, AVOID, or NO SIGNAL
-policy.
+## Latest verified rerun
+
+A fresh pull-request workflow completed on 22 August 2026 using Binance observations through
+21 August 2026. It again received 1,000 daily candles and accepted 999 fully completed candles.
+The evaluation still contained 584 out-of-sample predictions, now covering 15 January 2025 through
+21 August 2026.
+
+| Metric | Model | Probability baseline |
+| --- | ---: | ---: |
+| Accuracy | 47.09% | 49.32% |
+| Balanced accuracy | 47.04% | 50.00% |
+| Brier score | 0.25507 | 0.25081 |
+| Log loss | 0.70366 | 0.69476 |
+| ROC AUC | 0.46496 | 0.48255 |
+
+Relative Brier improvement was about -1.70%. The promotion gate again returned **FAIL** with reason
+`benchmark_improvement_below_gate`.
+
+That repeated failure is preserved as useful evidence. `logistic_direction_v1` remains
+**research-only** and is not connected to Cakrawala's deterministic decision states or broker
+execution.
 
 ## Strategy diagnostic
 
@@ -73,26 +91,30 @@ A separate long-or-cash diagnostic enters at the next daily open only when predi
 at least 0.55. The test assumes 10 basis points of round-trip transaction cost for every invested
 session, with no leverage and no short selling.
 
-For the same out-of-sample period:
+For the latest 22 August rerun:
 
-- model-driven long/cash total return: -15.80%;
-- model-driven maximum drawdown: -32.45%;
-- exposure: 14.04%;
-- traded sessions: 82;
-- hit rate while invested: 53.66%;
-- continuous buy-and-hold total return after its entry and exit cost: -22.83%;
+- model-driven long/cash total return: -20.93%;
+- model-driven maximum drawdown: -34.53%;
+- exposure: 14.21%;
+- traded sessions: 83;
+- hit rate while invested: 53.01%;
+- continuous buy-and-hold total return after its entry and exit cost: -18.95%;
 - buy-and-hold maximum drawdown: -52.97%.
 
-The smaller loss versus buy-and-hold is not treated as proof of predictive edge. The strategy spent
-most of the period in cash, so its risk exposure was materially lower. Model promotion is based on
-predictive validation against the probability benchmark rather than cherry-picking the strategy
-return comparison.
+The strategy diagnostic is not used to rescue a model that fails predictive validation. Exposure is
+materially different from buy-and-hold, and a return comparison alone is not evidence of predictive
+edge. Model promotion remains anchored to reproducible predictive performance against the declared
+benchmark and governance gates.
 
 ## Automation
 
 `.github/workflows/model-backtest.yml` runs the same validation automatically on relevant pull
 requests and once a week. Each successful run stores a JSON artifact for 30 days and writes a compact
 GitHub Actions summary.
+
+The weekly workflow retrains or reruns the model on the data available at that time. It does not mean
+the model is automatically promoted every week. A candidate must still beat the benchmark and pass
+all governance checks before any production role can be considered.
 
 The production-health watch also checks whether the weekly validation workflow has failed or become
 stale. A failed promotion gate is not considered an operational incident. It is a valid outcome when
@@ -113,7 +135,7 @@ require a separate reviewed change, risk review, security review, and explicit o
 
 ## What comes next
 
-The next model iteration should be evaluated against this baseline without tuning repeatedly on the
-same final test window. Useful follow-up work includes a separately reserved evaluation period,
+The next model iteration should be evaluated against this baseline without repeatedly tuning against
+the same final test window. Useful follow-up work includes a separately reserved evaluation period,
 stronger calibration checks, regime-aware features, and comparison with models that add complexity
 only when they demonstrate reproducible out-of-sample improvement.
