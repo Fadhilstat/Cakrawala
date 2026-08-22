@@ -7,7 +7,6 @@ import streamlit as st
 from cakrawala.terminal.ai_council_ui import render_ai_council
 from cakrawala.terminal.desk_v2 import render_market_desk, render_trader_tools
 from cakrawala.terminal.overview_ui import render_overview
-from cakrawala.terminal.personal_ui import render_personal_workspace
 from cakrawala.terminal.positioning_ui import render_positioning_hub
 from cakrawala.terminal.public_data import public_snapshot
 from cakrawala.terminal.trading_ui import (
@@ -82,21 +81,13 @@ def run() -> None:
 
     with st.sidebar:
         st.header("Cakrawala")
-        mode = st.radio(
-            "Access",
-            ["Public Mode", "Personal Mode"],
-            label_visibility="collapsed",
-        )
+        st.caption("Public research terminal")
+        st.caption("Evidence, market context, positioning, and risk education")
+        st.caption("Owner-only research is intentionally separated from this deployment.")
         st.divider()
-        st.caption("Public: evidence, research, positioning, and risk tools")
-        st.caption("Personal: plans, journal, playbook, private portfolio")
         if st.button("Refresh evidence", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
-
-    if mode == "Personal Mode":
-        render_personal_workspace()
-        return
 
     snapshot = public_snapshot()
     page = st.selectbox(
