@@ -15,7 +15,10 @@ def test_walk_forward_origins_are_point_in_time() -> None:
 def test_evaluate_series_compares_against_last_value_baseline() -> None:
     values = [100.0 + index * 0.1 for index in range(320)]
 
-    def forecaster(context: list[float], horizon: int) -> tuple[list[float], list[float], list[float]]:
+    def forecaster(
+        context: list[float],
+        horizon: int,
+    ) -> tuple[list[float], list[float], list[float]]:
         last = context[-1]
         median = [last + 0.1 * (step + 1) for step in range(horizon)]
         low = [value - 0.05 for value in median]
