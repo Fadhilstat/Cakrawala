@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import StrEnum
 from math import isclose, isfinite
-import re
 
 
 class SurpriseState(StrEnum):
@@ -140,11 +140,9 @@ def classify_indicator(event: str) -> IndicatorSemantics:
 def _surprise_state(actual: float, forecast: float) -> SurpriseState:
     if isclose(actual, forecast, rel_tol=0.0025, abs_tol=1e-12):
         return SurpriseState.INLINE
-    return (
-        SurpriseState.UPSIDE_SURPRISE
-        if actual > forecast
-        else SurpriseState.DOWNSIDE_SURPRISE
-    )
+    if actual > forecast:
+        return SurpriseState.UPSIDE_SURPRISE
+    return SurpriseState.DOWNSIDE_SURPRISE
 
 
 def _interpretation(
@@ -229,15 +227,18 @@ def assess_economic_release(release: EconomicRelease) -> EconomicSurpriseAssessm
         reasons.append("Consensus forecast is unavailable, so surprise cannot be scored.")
     if previous_change is not None:
         reasons.append(
-            f"Actual differs from the previous release by {previous_change:+.6g} in normalized units."
+            "Actual differs from the previous release by "
+            f"{previous_change:+.6g} in normalized units."
         )
     if semantics == IndicatorSemantics.INFLATION:
         reasons.append(
-            "Inflation surprise is policy-sensitive and is not a direct currency or equity signal."
+            "Inflation surprise is policy-sensitive and is not a direct currency "
+            "or equity signal."
         )
     elif semantics == IndicatorSemantics.CENTRAL_BANK:
         reasons.append(
-            "Rate decisions require statement, guidance, and market-pricing context before a directional view."
+            "Rate decisions require statement, guidance, and market-pricing context "
+            "before a directional view."
         )
     elif semantics == IndicatorSemantics.CONTEXT_DEPENDENT:
         reasons.append(
