@@ -3,8 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
+from zoneinfo import ZoneInfo
 
-from cakrawala.personal.forex_analytics import AccountSnapshot, ForexDeal, daily_pnl, performance_summary
+from cakrawala.personal.forex_analytics import AccountSnapshot, ForexDeal, performance_summary
 from cakrawala.personal.forex_sync import PositionSnapshot
 
 
@@ -50,6 +51,21 @@ def policy_from_mapping(values: dict[str, object]) -> ForexRiskPolicy:
     )
 
 
+def _daily_closed_pnl(
+    deals: list[ForexDeal],
+    reference_time: datetime,
+    timezone_name: str,
+) -> float:
+    timezone = ZoneInfo(timezone_name)
+    local_date = reference_time.astimezone(timezone).date()
+    return sum(
+        deal.net_pnl
+        for deal in deals
+        if deal.closed_at is not None
+        and deal.closed_at.astimezone(timezone).date() == local_date
+    )
+
+
 def assess_forex_risk(
     snapshot: AccountSnapshot | None,
     positions: list[PositionSnapshot],
@@ -57,6 +73,7 @@ def assess_forex_risk(
     policy: ForexRiskPolicy,
     *,
     now: datetime | None = None,
+    timezone_name: str = "UTC",
 ) -> ForexRiskAssessment:
     if snapshot is None or snapshot.balance <= 0:
         return ForexRiskAssessment(
@@ -79,7 +96,7 @@ def assess_forex_risk(
         0.0,
     )
 
-    today_pnl = daily_pnl(deals).get(reference_time.astimezone(UTC).date(), 0.0)
+    today_pnl = _daily_closed_pnl(deals, reference_time, timezone_name)
     daily_percent = today_pnl / snapshot.balance * 100
     floating_percent = snapshot.floating_pnl / snapshot.balance * 100
     drawdown = performance_summary(deals).max_drawdown
