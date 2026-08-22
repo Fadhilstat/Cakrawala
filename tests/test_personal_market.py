@@ -38,11 +38,11 @@ def test_personal_market_is_private_and_no_store(monkeypatch) -> None:
 def test_equity_watchlist_is_bounded_and_deduplicated(monkeypatch) -> None:
     monkeypatch.setenv(
         "PERSONAL_EQUITY_WATCHLIST",
-        "BBCA:IDX, bbca:idx, AAPL:NASDAQ, MSFT:NASDAQ",
+        "BBCA@XIDX, bbca@xidx, AAPL@XNAS, MSFT@XNAS",
     )
     items = personal_market._watchlist()
-    assert [(item.symbol, item.exchange) for item in items] == [
-        ("BBCA", "IDX"),
-        ("AAPL", "NASDAQ"),
-        ("MSFT", "NASDAQ"),
+    assert [(item.symbol, item.mic_code) for item in items] == [
+        ("BBCA", "XIDX"),
+        ("AAPL", "XNAS"),
+        ("MSFT", "XNAS"),
     ]
