@@ -12,6 +12,7 @@ from cakrawala.data.providers.base import ProviderResult
 TWELVE_DATA_URL = "https://api.twelvedata.com/time_series"
 _SYMBOL_RE = re.compile(r"^[A-Z0-9][A-Z0-9._-]{0,19}$")
 _EXCHANGE_RE = re.compile(r"^[A-Z0-9][A-Z0-9._-]{0,15}$")
+_MIC_RE = re.compile(r"^[A-Z0-9]{4}$")
 
 
 @dataclass(frozen=True)
@@ -88,12 +89,15 @@ def fetch_daily_equity_history(
     symbol: str,
     *,
     exchange: str | None = None,
+    mic_code: str | None = None,
     outputsize: int = 60,
 ) -> ProviderResult:
     api_key = os.environ.get("TWELVE_DATA_API_KEY", "").strip()
     if not api_key:
         raise RuntimeError("TWELVE_DATA_API_KEY is not configured")
     normalized_symbol = _validated_identifier(symbol, label="symbol", pattern=_SYMBOL_RE)
+    if exchange is not None and mic_code is not None:
+        raise ValueError("configure either exchange or mic_code, not both")
     if outputsize < 21 or outputsize > 120:
         raise ValueError("outputsize must be between 21 and 120")
 
@@ -106,6 +110,7 @@ def fetch_daily_equity_history(
         "apikey": api_key,
     }
     normalized_exchange = None
+    normalized_mic = None
     if exchange is not None:
         normalized_exchange = _validated_identifier(
             exchange,
@@ -113,6 +118,13 @@ def fetch_daily_equity_history(
             pattern=_EXCHANGE_RE,
         )
         params["exchange"] = normalized_exchange
+    if mic_code is not None:
+        normalized_mic = _validated_identifier(
+            mic_code,
+            label="mic_code",
+            pattern=_MIC_RE,
+        )
+        params["mic_code"] = normalized_mic
 
     policy = HttpPolicy(
         allowed_hosts=frozenset({"api.twelvedata.com"}),
@@ -133,6 +145,7 @@ def fetch_daily_equity_history(
         data={
             "symbol": normalized_symbol,
             "exchange": normalized_exchange,
+            "mic_code": normalized_mic,
             "bars": bars,
         },
         provenance=build_provenance(provider_name, response.url, response.raw),
