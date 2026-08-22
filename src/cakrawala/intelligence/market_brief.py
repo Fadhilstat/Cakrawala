@@ -47,10 +47,13 @@ def _direction(value: float | None, deadband_pct: float) -> int:
     return 1 if value > 0 else -1
 
 
-def assess_daily_prices(
+def assess_change_windows(
     symbol: str,
-    points: list[DailyPricePoint],
     *,
+    as_of: date,
+    change_1d_pct: float | None,
+    change_5d_pct: float | None,
+    change_20d_pct: float | None,
     today: date | None = None,
     maximum_age_days: int = 5,
     deadband_pct: float = 0.05,
@@ -63,29 +66,7 @@ def assess_daily_prices(
     if deadband_pct < 0:
         raise ValueError("deadband_pct must not be negative")
 
-    ordered = sorted(points, key=lambda item: item.observed_at)
-    unique: dict[datetime, DailyPricePoint] = {}
-    for point in ordered:
-        close = float(point.close)
-        if not isfinite(close) or close <= 0:
-            raise ValueError("daily close values must be finite and positive")
-        unique[point.observed_at] = point
-    ordered = list(unique.values())
-
-    if len(ordered) < 21:
-        return MarketAssessment(
-            symbol=normalized_symbol,
-            bias=MarketBias.INSUFFICIENT,
-            as_of=ordered[-1].observed_at.date() if ordered else None,
-            change_1d_pct=None,
-            change_5d_pct=None,
-            change_20d_pct=None,
-            rationale=("At least 21 completed daily observations are required.",),
-            invalidation="Collect enough completed daily observations before assigning a bias.",
-        )
-
     reference_day = today or datetime.now(UTC).date()
-    as_of = ordered[-1].observed_at.date()
     if as_of > reference_day:
         return MarketAssessment(
             symbol=normalized_symbol,
@@ -97,6 +78,7 @@ def assess_daily_prices(
             rationale=("The newest observation is future-dated and cannot be used.",),
             invalidation="Wait for a valid completed observation from the data provider.",
         )
+
     age_days = (reference_day - as_of).days
     if age_days > maximum_age_days:
         return MarketAssessment(
@@ -110,16 +92,20 @@ def assess_daily_prices(
             invalidation="Refresh the source before using this assessment.",
         )
 
-    closes = [float(point.close) for point in ordered]
-    change_1d = _change(closes, 1)
-    change_5d = _change(closes, 5)
-    change_20d = _change(closes, 20)
-    directions = (
-        _direction(change_1d, deadband_pct),
-        _direction(change_5d, deadband_pct),
-        _direction(change_20d, deadband_pct),
-    )
+    changes = (change_1d_pct, change_5d_pct, change_20d_pct)
+    if any(value is None or not isfinite(float(value)) for value in changes):
+        return MarketAssessment(
+            symbol=normalized_symbol,
+            bias=MarketBias.INSUFFICIENT,
+            as_of=as_of,
+            change_1d_pct=change_1d_pct,
+            change_5d_pct=change_5d_pct,
+            change_20d_pct=change_20d_pct,
+            rationale=("All 1D, 5D, and 20D completed-price windows are required.",),
+            invalidation="Wait until the source provides enough completed history.",
+        )
 
+    directions = tuple(_direction(value, deadband_pct) for value in changes)
     if directions == (1, 1, 1):
         bias = MarketBias.BUY_BIAS
         rationale = (
@@ -146,9 +132,55 @@ def assess_daily_prices(
         symbol=normalized_symbol,
         bias=bias,
         as_of=as_of,
-        change_1d_pct=change_1d,
-        change_5d_pct=change_5d,
-        change_20d_pct=change_20d,
+        change_1d_pct=change_1d_pct,
+        change_5d_pct=change_5d_pct,
+        change_20d_pct=change_20d_pct,
         rationale=rationale,
         invalidation=invalidation,
+    )
+
+
+def assess_daily_prices(
+    symbol: str,
+    points: list[DailyPricePoint],
+    *,
+    today: date | None = None,
+    maximum_age_days: int = 5,
+    deadband_pct: float = 0.05,
+) -> MarketAssessment:
+    normalized_symbol = symbol.strip().upper()
+    if not normalized_symbol:
+        raise ValueError("symbol is required")
+
+    ordered = sorted(points, key=lambda item: item.observed_at)
+    unique: dict[datetime, DailyPricePoint] = {}
+    for point in ordered:
+        close = float(point.close)
+        if not isfinite(close) or close <= 0:
+            raise ValueError("daily close values must be finite and positive")
+        unique[point.observed_at] = point
+    ordered = list(unique.values())
+
+    if len(ordered) < 21:
+        return MarketAssessment(
+            symbol=normalized_symbol,
+            bias=MarketBias.INSUFFICIENT,
+            as_of=ordered[-1].observed_at.date() if ordered else None,
+            change_1d_pct=None,
+            change_5d_pct=None,
+            change_20d_pct=None,
+            rationale=("At least 21 completed daily observations are required.",),
+            invalidation="Collect enough completed daily observations before assigning a bias.",
+        )
+
+    closes = [float(point.close) for point in ordered]
+    return assess_change_windows(
+        normalized_symbol,
+        as_of=ordered[-1].observed_at.date(),
+        change_1d_pct=_change(closes, 1),
+        change_5d_pct=_change(closes, 5),
+        change_20d_pct=_change(closes, 20),
+        today=today,
+        maximum_age_days=maximum_age_days,
+        deadband_pct=deadband_pct,
     )
