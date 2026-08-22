@@ -3,7 +3,10 @@ from datetime import UTC
 import pytest
 
 from cakrawala.data.providers.binance_futures import _symbol
-from cakrawala.data.providers.bls_calendar import parse_calendar
+from cakrawala.data.providers.bls_calendar import (
+    parse_calendar,
+    parse_release_schedule_html,
+)
 from cakrawala.data.providers.cftc import parse_tff_row
 
 
@@ -40,6 +43,31 @@ END:VCALENDAR
     assert events[0].starts_at.tzinfo is UTC
     assert events[0].starts_at.hour == 12
     assert events[0].starts_at.minute == 30
+
+
+def test_bls_html_schedule_parser_handles_official_table_rows() -> None:
+    sample = """
+    <table>
+      <tr><th>Date</th><th>Time</th><th>Release</th></tr>
+      <tr>
+        <td>Friday, September 4, 2026</td>
+        <td>08:30 AM</td>
+        <td><a>Employment Situation for August 2026</a></td>
+      </tr>
+      <tr>
+        <td>Monday, September 7, 2026</td>
+        <td></td>
+        <td>Labor Day</td>
+      </tr>
+    </table>
+    """
+    source_url = "https://www.bls.gov/schedule/2026/home.htm"
+    events = parse_release_schedule_html(sample, source_url=source_url)
+
+    assert len(events) == 1
+    assert events[0].title == "Employment Situation for August 2026"
+    assert events[0].starts_at.isoformat() == "2026-09-04T12:30:00+00:00"
+    assert events[0].link == source_url
 
 
 def test_binance_futures_symbol_validation() -> None:
