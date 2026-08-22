@@ -17,6 +17,7 @@ from cakrawala.web.personal_forex_review import install_personal_forex_review_ro
 from cakrawala.web.personal_forex_risk import install_personal_forex_risk_route
 from cakrawala.web.personal_forex_sync import install_personal_forex_sync_route
 from cakrawala.web.personal_forex_system import install_personal_forex_system_route
+from cakrawala.web.personal_market import install_personal_market_route
 
 
 @dataclass(frozen=True)
@@ -181,6 +182,7 @@ def install_owner_auth(server: Flask) -> WebAuthConfig | None:
     install_personal_forex_review_route(server)
     install_personal_forex_risk_route(server)
     install_personal_forex_system_route(server)
+    install_personal_market_route(server)
     install_personal_ai_lab_route(server)
     return config
 
