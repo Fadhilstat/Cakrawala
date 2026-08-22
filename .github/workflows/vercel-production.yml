@@ -25,7 +25,7 @@ jobs:
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Check deployment credential
         id: gate
@@ -71,11 +71,15 @@ jobs:
           echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
           echo "Deployment created successfully."
 
-      - name: Verify deployed release and security boundary
+      - name: Confirm deployment reached a ready state
         if: steps.gate.outputs.enabled == 'true'
         env:
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
         run: |
+          npx --yes vercel@59.3.0 inspect "$DEPLOYMENT_URL" --wait --token "$VERCEL_TOKEN"
+
+      - name: Verify canonical release and security boundary
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
           python scripts/verify_personal_release.py \
-            --base-url "$CANONICAL_URL" \
-            --deployment-url "$DEPLOYMENT_URL"
+            --base-url "$CANONICAL_URL"
