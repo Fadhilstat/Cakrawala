@@ -3,8 +3,7 @@ from __future__ import annotations
 import json
 
 import pytest
-
-from scripts import verify_personal_release as release
+import scripts.verify_personal_release as release
 
 
 SECURITY_HEADERS = {
