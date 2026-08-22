@@ -82,8 +82,7 @@ def run() -> None:
     with st.sidebar:
         st.header("Cakrawala")
         st.caption("Public research terminal")
-        st.caption("Evidence, market context, positioning, and risk education")
-        st.caption("Owner-only research is intentionally separated from this deployment.")
+        st.caption("Evidence, market context, positioning, risk, and model governance")
         st.divider()
         if st.button("Refresh evidence", use_container_width=True):
             st.cache_data.clear()
