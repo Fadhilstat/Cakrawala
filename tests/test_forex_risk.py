@@ -24,7 +24,12 @@ POLICY = ForexRiskPolicy(
 )
 
 
-def _snapshot(now: datetime, *, floating: float = 0, margin: float = 500) -> AccountSnapshot:
+def _snapshot(
+    now: datetime,
+    *,
+    floating: float = 0,
+    margin: float = 500,
+) -> AccountSnapshot:
     return AccountSnapshot(
         account_name="primary",
         balance=10000,
@@ -35,7 +40,11 @@ def _snapshot(now: datetime, *, floating: float = 0, margin: float = 500) -> Acc
     )
 
 
-def _position(now: datetime, *, stop_loss: float | None = 1.09) -> PositionSnapshot:
+def _position(
+    now: datetime,
+    *,
+    stop_loss: float | None = 1.09,
+) -> PositionSnapshot:
     return PositionSnapshot(
         ticket="1",
         account_name="primary",
@@ -116,3 +125,18 @@ def test_risk_guard_warns_on_stale_snapshot_and_missing_stop() -> None:
     assert assessment.state == ForexRiskState.CAUTION
     assert assessment.positions_without_stop == 1
     assert assessment.snapshot_age_minutes == pytest.approx(30)
+
+
+def test_risk_guard_uses_configured_daily_timezone() -> None:
+    now = datetime(2026, 8, 22, 0, 30, tzinfo=UTC)
+    prior_utc_day_but_same_wib_day = datetime(2026, 8, 21, 18, 30, tzinfo=UTC)
+    assessment = assess_forex_risk(
+        _snapshot(now),
+        [],
+        [_deal(prior_utc_day_but_same_wib_day, -350)],
+        POLICY,
+        now=now,
+        timezone_name="Asia/Jakarta",
+    )
+    assert assessment.state == ForexRiskState.LOCKED
+    assert assessment.daily_closed_pnl_percent == pytest.approx(-3.5)
