@@ -13,6 +13,6 @@ validation_candidates:
     role: direction_probability
     status: research_only
     promoted: false
-    latest_verified_run: '2026-08-21'
+    latest_verified_run: '2026-08-22'
     promotion_reason: benchmark_improvement_below_gate
     methodology: docs/model-validation.md
