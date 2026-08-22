@@ -8,7 +8,9 @@ from cakrawala.web.personal_forex_risk import install_personal_forex_risk_route
 from cakrawala.web.personal_forex_system import install_personal_forex_system_route
 
 
-def test_forex_risk_route_is_owner_only(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_forex_risk_route_is_owner_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     app = Flask(__name__)
     app.secret_key = "test-secret"
     install_personal_forex_risk_route(app)
@@ -18,7 +20,11 @@ def test_forex_risk_route_is_owner_only(monkeypatch: pytest.MonkeyPatch) -> None
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/login")
 
-    monkeypatch.setattr(personal_forex_risk, "_page", lambda display_name: f"risk:{display_name}")
+    monkeypatch.setattr(
+        personal_forex_risk,
+        "_page",
+        lambda display_name: f"risk:{display_name}",
+    )
     with client.session_transaction() as owner_session:
         owner_session["owner_verified"] = True
         owner_session["display_name"] = "Owner"
@@ -29,7 +35,9 @@ def test_forex_risk_route_is_owner_only(monkeypatch: pytest.MonkeyPatch) -> None
     assert response.headers["Cache-Control"] == "no-store"
 
 
-def test_forex_system_route_is_owner_only(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_forex_system_route_is_owner_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     app = Flask(__name__)
     app.secret_key = "test-secret"
     install_personal_forex_system_route(app)
@@ -39,7 +47,11 @@ def test_forex_system_route_is_owner_only(monkeypatch: pytest.MonkeyPatch) -> No
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/login")
 
-    monkeypatch.setattr(personal_forex_system, "_page", lambda display_name: f"system:{display_name}")
+    monkeypatch.setattr(
+        personal_forex_system,
+        "_page",
+        lambda display_name: f"system:{display_name}",
+    )
     with client.session_transaction() as owner_session:
         owner_session["owner_verified"] = True
         owner_session["display_name"] = "Owner"
