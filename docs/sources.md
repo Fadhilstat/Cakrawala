@@ -1,6 +1,6 @@
 # Source Registry
 
-Source status was rechecked on 21 August 2026. Runtime ingestion still treats every response as
+Source status was rechecked on 22 August 2026. Runtime ingestion still treats every response as
 untrusted until transport, content type, size, schema, and quality checks pass.
 
 | Source | Approved interface | Authentication | Production note |
@@ -15,6 +15,7 @@ untrusted until transport, content type, size, schema, and quality checks pass.
 | ECB FX reference rates | `https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist-90d.xml` | None | Daily working-day reference rates for research context, not transaction pricing |
 | CFTC TFF Futures Only | `https://publicreporting.cftc.gov/resource/gpe5-46if.json` | None | Weekly institutional positioning, not intraday sentiment |
 | BLS release calendar | `https://www.bls.gov/schedule/news_release/bls.ics` | None | Official scheduled U.S. labor and inflation release times |
+| Investing.com Economic Calendar | `https://www.investing.com/economic-calendar/` | None for normal web viewing | Secondary human-readable cross-check only, not a bulk-ingestion source |
 | Federal Reserve press releases | `https://www.federalreserve.gov/feeds/press_all.xml` | None | Official policy and regulatory news RSS |
 | BIS press releases | `https://www.bis.org/doclist/all_pressrels.rss` | None | Official global central-bank context RSS |
 | ECB press releases | `https://www.ecb.europa.eu/rss/press.html` | None | Official ECB press-release RSS |
@@ -61,14 +62,39 @@ presented as a live positioning feed.
 The CFTC public dataset was accessible when rechecked on 21 August 2026 and showed an August 2026
 update. Exact report dates remain visible in the terminal rather than being described as real-time.
 
-## Event-risk policy
+## Event-risk and economic-surprise policy
 
-The free economic calendar currently reads the official BLS iCalendar release schedule. Event times
-are normalized with timezone information when the calendar provides a `TZID`. A scheduled release
-near the current time raises a review warning; it never predicts the release outcome.
+The automated free event calendar uses the official BLS release schedule. Event times are normalized
+with timezone information when the calendar provides a `TZID`. A scheduled release near the current
+time raises a review warning; it never predicts the release outcome.
 
-Additional official calendars can be added only when the source has a stable, machine-readable
-interface that can be validated without a paid subscription.
+Investing.com Economic Calendar was confirmed accessible on 22 August 2026 and exposes the fields
+`Actual`, `Forecast`, and `Previous`, including high-impact events such as CPI, payrolls, GDP,
+unemployment, and central-bank decisions. Cakrawala may consult that page during bounded daily
+research as a secondary human-readable consensus reference. It is not used as a bulk scraper,
+redistribution feed, or historical training database.
+
+For a released event, the `Actual` value and release timing should be cross-checked against the
+relevant official primary source whenever one is available. `Forecast` is treated as third-party
+market consensus, not ground truth. `Previous` may later be revised, so revision risk must remain
+visible.
+
+The economic-surprise layer compares actual versus forecast and actual versus previous values, but
+it does not use a naive higher-is-always-better rule. Examples:
+
+- higher payrolls or stronger retail sales can support a stronger-activity interpretation;
+- a higher unemployment rate or higher jobless claims usually points the other way;
+- hotter CPI or PCE can add hawkish policy pressure, but the FX effect depends on the current policy
+  regime and market pricing;
+- central-bank rate decisions require statement and guidance context, not only the numeric rate;
+- missing or stale forecast data produces insufficient evidence instead of a forced view.
+
+Daily market and forex briefs can use the resulting surprise context as one input among price trend,
+positioning, event proximity, source freshness, model health, and risk controls. It cannot override
+those gates or place an order.
+
+Additional automated calendars can be added only when the source has a stable machine-readable
+interface and its automated use can be validated without a mandatory paid subscription.
 
 ## Trading tool research policy
 
