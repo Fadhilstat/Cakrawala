@@ -39,7 +39,11 @@ def assess_fx_decision_prep(
         ("20D", change_20d_pct, 3.0),
     )
     directions = [(_direction(value), weight, label) for label, value, weight in horizons]
-    valid = [(direction, weight, label) for direction, weight, label in directions if direction != 0]
+    valid = [
+        (direction, weight, label)
+        for direction, weight, label in directions
+        if direction != 0
+    ]
 
     if stale:
         return DecisionPrep(
