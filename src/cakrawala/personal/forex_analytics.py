@@ -59,7 +59,10 @@ class ForexPerformance:
 
 
 def performance_summary(deals: list[ForexDeal]) -> ForexPerformance:
-    closed = [deal for deal in deals if deal.is_closed]
+    closed = sorted(
+        (deal for deal in deals if deal.closed_at is not None),
+        key=lambda deal: deal.closed_at,
+    )
     pnls = [deal.net_pnl for deal in closed]
     winners = [value for value in pnls if value > 0]
     losers = [value for value in pnls if value < 0]
