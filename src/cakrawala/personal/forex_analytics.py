@@ -21,11 +21,12 @@ class ForexDeal:
     realized_pnl: float
     commission: float
     swap: float
+    fee: float = 0.0
     result_r: float | None = None
 
     @property
     def net_pnl(self) -> float:
-        return self.realized_pnl + self.commission + self.swap
+        return self.realized_pnl + self.commission + self.swap + self.fee
 
     @property
     def is_closed(self) -> bool:

@@ -10,7 +10,7 @@ The login uses a username plus a one-way password hash stored in Vercel environm
 
 ## Forex Command Center
 
-The private desk now follows the useful parts of professional trading terminals and open trading journals without copying their branding, proprietary scoring logic, or source code.
+The private desk follows useful patterns from professional trading terminals and open trading journals without copying proprietary branding, scoring logic, or source code.
 
 When private account snapshots and deal history exist, the command center can show:
 
@@ -27,32 +27,90 @@ Empty broker data remains an explicit empty state. The interface never generates
 
 ## Private storage contract
 
-Migration `migrations/personal/004_forex_command_center.sql` adds two owner-scoped tables:
+Migration `migrations/personal/004_forex_command_center.sql` creates owner-scoped account and closed-deal storage. Migration `migrations/personal/005_forex_sync_and_positions.sql` extends the private contract with broker fee support, open-position snapshots, and immutable sync-batch audit records.
+
+The main private records are:
 
 - `forex_account_snapshots` for balance, equity, floating P/L, margin level, capture time, account name, and source
-- `forex_deals` for broker ticket, account, symbol, side, volume, entry and exit, timestamps, realized P/L, commission, swap, and optional R result
+- `forex_position_snapshots` for the latest read-only open-position state, including entry, current price, stop, target, and floating P/L
+- `forex_deals` for normalized closed positions, realized P/L, commission, swap, broker fee, and optional R result
+- `forex_sync_batches` for idempotency, ingestion counts, payload hashes, and sync audit history
 
-The `(owner_sub, account_name, ticket)` business key prevents duplicate deal ingestion. Account snapshots also have a unique owner, account, and capture-time key. Deal history is append-only after ingestion so later analytics can be reproduced from the original record.
+The `(owner_sub, account_name, ticket)` business key prevents duplicate closed-position ingestion. Snapshot tables use owner, account, ticket, and capture-time keys where appropriate. Historical records are append-only so later analytics can be reproduced from the records that were actually ingested.
 
-The current web application reads these tables only when `DATABASE_PERSONAL_URL` is configured. Missing private storage does not weaken authentication and does not cause fabricated fallback data.
+The web application reads these tables only when `DATABASE_PERSONAL_URL` is configured. Missing private storage does not weaken authentication and does not trigger fabricated fallback data.
 
-## MT5 and broker integration boundary
+## Read-only MT5 sync
 
-Cakrawala does not put MetaTrader or broker credentials inside Vercel. A direct MetaTrader 5 desktop-terminal dependency is also a poor fit for a Linux serverless request path. The safer design is a separate read-only collector or import workflow that runs where the trading terminal already exists, normalizes account snapshots and deal history, and sends only the required records to private storage through a narrowly scoped authenticated ingestion path.
+MetaTrader 5 remains local. Cakrawala does not install the desktop terminal in Vercel and does not store the broker password in the web application.
 
-The first production-safe options are:
+The local collector is `scripts/mt5_readonly_sync.py`. It uses only read-oriented MetaTrader 5 Python calls:
 
-1. manual CSV or JSON import for historical records
-2. a local read-only collector for personal use
-3. a later broker API adapter only when its authentication, licensing, rate limits, and account requirements have been confirmed
+- `initialize()` to connect to the already installed local terminal
+- `account_info()` for account state
+- `positions_get()` for open positions
+- `history_deals_get()` for historical deals
+- `shutdown()` when collection finishes
 
-No option is allowed to expose a broker password, trading token, or private account data to the browser or public repository.
+The implementation does not call `order_send()` or any other order-placement function.
+
+The collector normalizes simple completed positions before upload. It deliberately skips complex reversal and close-by histories that cannot be reconstructed conservatively from the current normalization rules. Partial closes are accepted only after the total entry and exit volume balances. This is safer than forcing an apparently complete trade from ambiguous broker history.
+
+Official MetaTrader 5 Python documentation used for this integration was confirmed accessible during implementation:
+
+- https://www.mql5.com/en/docs/python_metatrader5
+- https://www.mql5.com/en/docs/python_metatrader5/mt5initialize_py
+- https://www.mql5.com/en/docs/python_metatrader5/mt5accountinfo_py
+- https://www.mql5.com/en/docs/python_metatrader5/mt5positionsget_py
+- https://www.mql5.com/en/docs/python_metatrader5/mt5historydealsget_py
+
+### Local setup
+
+Install the `MetaTrader5` package only on the Windows machine where the MT5 terminal is available. It is intentionally not a Vercel runtime dependency.
+
+Set these variables on the collector machine:
+
+```text
+CAKRAWALA_FOREX_SYNC_URL=https://<private-vercel-host>/personal/forex/sync
+CAKRAWALA_FOREX_SYNC_TOKEN=<long-random-ingest-token>
+```
+
+Set the corresponding token only in the private Vercel environment as `PERSONAL_FOREX_INGEST_TOKEN`. The token must never be committed, printed, placed in browser JavaScript, or copied into public notebooks.
+
+A safe first run is:
+
+```text
+python scripts/mt5_readonly_sync.py --dry-run
+```
+
+After verifying the counts locally, run the collector without `--dry-run` to upload the normalized snapshot.
+
+### Sync endpoint safeguards
+
+`POST /personal/forex/sync` is separate from browser-session authentication because it is intended for the local collector. It is protected by a dedicated bearer token and remains unavailable when the token, owner identity, or private database configuration is missing.
+
+The endpoint also enforces:
+
+- HTTPS on the collector side
+- constant-time bearer-token comparison
+- JSON-only requests
+- a bounded request size
+- bounded position and deal counts
+- timezone-aware timestamps
+- finite numeric values
+- duplicate ticket checks inside each payload
+- freshness checks for the snapshot timestamp
+- payload hashing and idempotent batch detection
+- database business keys for duplicate protection
+- no database connection string or secret returned to the client
+
+A repeated identical payload is recorded as a duplicate batch rather than creating repeated trading history.
 
 ## Market evidence
 
 The desk uses sources that are publicly accessible and do not require paid market-data credentials:
 
-- ECB euro foreign-exchange reference rates for EURUSD, GBPUSD, USDJPY, USDCHF, AUDUSD, USDCAD, NZDUSD, EURJPY, GBPJPY, and EURGBP. These are daily reference rates. They are not executable broker quotes.
+- ECB euro foreign-exchange reference rates for EURUSD, GBPUSD, USDJPY, USDCHF, AUDUSD, USDCAD, NZDUSD, EURJPY, GBPJPY, and EURGBP. These are daily reference rates, not executable broker quotes.
 - CFTC Traders in Financial Futures for weekly currency positioning. Asset-manager and leveraged-fund net positions are shown with the change from the previous report when available. This is positioning context, not live order flow.
 - U.S. Bureau of Labor Statistics official release calendar for near-term U.S. macro event risk.
 - Federal Reserve, BIS, and ECB official feeds for macro and central-bank headlines.
@@ -66,14 +124,7 @@ Every provider remains independently failure-tolerant. Missing evidence is shown
 
 The command-center design borrows product patterns, not code. The research set includes professional terminals and open-source journals that emphasize account-state visibility, watchlists, trade history, calendar review, execution-quality review, risk statistics, filtering, and multi-account workflows.
 
-Patterns considered useful for Cakrawala include:
-
-- account balance, equity, margin, and unrealized P/L visibility found in professional trade-watch panels
-- symbol-level statistics and market context
-- P/L calendar and equity-review patterns used by open trading journals
-- execution-quality, risk, behavioral, and playbook review
-- watchlists and alert-oriented workflows
-- paper-first or read-only integration boundaries before any execution capability
+Patterns considered useful for Cakrawala include account balance and equity visibility, symbol-level statistics, daily review, behavioral review, playbook adherence, alert-oriented workflows, and a read-only integration boundary before any execution capability.
 
 Features that depend on paid data, broker-specific subscriptions, proprietary analytics, or unsafe credential handling are not part of the zero-cost MVP.
 
@@ -97,4 +148,4 @@ Cakrawala does not place forex orders, connect the Vercel request path directly 
 
 ## Cost boundary
 
-The implemented market-evidence layer uses public official data without a paid market-data API. The personal Vercel project currently runs on the Vercel Hobby plan. Private storage or broker adapters must be selected separately and are only accepted into the zero-cost MVP when a genuinely free option is available without a mandatory paid upgrade.
+The implemented market-evidence layer uses public official data without a paid market-data API. The personal Vercel project currently runs on the Vercel Hobby plan. The MT5 collector uses the existing local terminal and standard Python tooling. Private storage or future broker adapters are accepted into the zero-cost MVP only when they have a genuinely free operating path without a mandatory paid upgrade.

@@ -96,7 +96,7 @@ def test_valid_login_opens_private_application(protected_app: Flask) -> None:
         base_url="https://localhost",
     )
     assert response.status_code == 302
-    assert response.headers["Location"].endswith("/personal/ai-lab")
+    assert response.headers["Location"].endswith("/personal/forex")
 
     root = client.get("/", base_url="https://localhost")
     assert root.status_code == 200

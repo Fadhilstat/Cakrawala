@@ -13,6 +13,8 @@ from werkzeug.security import check_password_hash
 
 from cakrawala.web.personal_ai_lab import install_personal_ai_lab_route
 from cakrawala.web.personal_forex import install_personal_forex_route
+from cakrawala.web.personal_forex_review import install_personal_forex_review_route
+from cakrawala.web.personal_forex_sync import install_personal_forex_sync_route
 
 
 @dataclass(frozen=True)
@@ -116,7 +118,8 @@ def install_owner_auth(server: Flask) -> WebAuthConfig | None:
 
     @server.before_request
     def protect_personal_vercel() -> Any:
-        if request.path == "/healthz" or request.path == "/login":
+        public_paths = {"/healthz", "/login", "/personal/forex/sync"}
+        if request.path in public_paths:
             return None
         if config is None:
             return Response(
@@ -137,7 +140,7 @@ def install_owner_auth(server: Flask) -> WebAuthConfig | None:
                 mimetype="text/plain",
             )
         if bool(session.get("owner_verified", False)):
-            return redirect("/personal/ai-lab")
+            return redirect("/personal/forex")
 
         if request.method == "GET":
             session["login_csrf"] = secrets.token_urlsafe(32)
@@ -164,14 +167,16 @@ def install_owner_auth(server: Flask) -> WebAuthConfig | None:
         session["owner_id"] = config.owner_id
         session["display_name"] = config.username
         session.permanent = request.form.get("remember") == "yes"
-        return redirect("/personal/ai-lab")
+        return redirect("/personal/forex")
 
     @server.get("/logout")
     def logout() -> Any:
         session.clear()
         return redirect("/login")
 
+    install_personal_forex_sync_route(server)
     install_personal_forex_route(server)
+    install_personal_forex_review_route(server)
     install_personal_ai_lab_route(server)
     return config
 
