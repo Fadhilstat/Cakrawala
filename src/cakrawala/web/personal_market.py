@@ -151,14 +151,26 @@ def _styles() -> str:
 body { margin:0; background:var(--bg); color:var(--text); font-family:Inter,system-ui,sans-serif; }
 main { width:min(1500px,calc(100% - 28px)); margin:0 auto; padding:24px 0 48px; }
 a { color:#8ecbff; text-decoration:none; }
-.top { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; margin-bottom:18px; }
+.top {
+  display:flex; align-items:flex-start; justify-content:space-between;
+  gap:18px; margin-bottom:18px;
+}
 .eyebrow { color:var(--green); font-size:11px; letter-spacing:.12em; font-weight:800; }
 h1 { margin:6px 0 6px; font-size:29px; } h2 { margin:0 0 10px; font-size:17px; }
 .muted { color:var(--muted); line-height:1.55; }
-.panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px; margin:14px 0; }
-.warning { border:1px solid #6b5735; border-radius:10px; padding:11px 13px; margin:12px 0; color:#f3d9a0; }
+.panel {
+  background:var(--panel); border:1px solid var(--line); border-radius:12px;
+  padding:16px; margin:14px 0;
+}
+.warning {
+  border:1px solid #6b5735; border-radius:10px; padding:11px 13px;
+  margin:12px 0; color:#f3d9a0;
+}
 .table-wrap { overflow:auto; } table { width:100%; border-collapse:collapse; font-size:11px; }
-th,td { padding:9px 8px; text-align:left; vertical-align:top; border-bottom:1px solid var(--line); min-width:72px; }
+th,td {
+  padding:9px 8px; text-align:left; vertical-align:top;
+  border-bottom:1px solid var(--line); min-width:72px;
+}
 th { color:#aebdd1; position:sticky; top:0; background:var(--panel); }
 td:nth-child(8),td:nth-child(9) { min-width:280px; white-space:normal; line-height:1.45; }
 .positive { color:var(--green); font-weight:800; } .negative { color:var(--red); font-weight:800; }
