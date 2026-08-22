@@ -20,7 +20,7 @@ from cakrawala.intelligence.market_brief import (
 @dataclass(frozen=True)
 class EquityWatch:
     symbol: str
-    exchange: str | None
+    mic_code: str | None
 
 
 def _watchlist() -> list[EquityWatch]:
@@ -33,12 +33,12 @@ def _watchlist() -> list[EquityWatch]:
         cleaned = token.strip()
         if not cleaned:
             continue
-        parts = [part.strip().upper() for part in cleaned.split(":", 1)]
+        parts = [part.strip().upper() for part in cleaned.split("@", 1)]
         symbol = parts[0]
-        exchange = parts[1] if len(parts) == 2 and parts[1] else None
-        key = (symbol, exchange)
+        mic_code = parts[1] if len(parts) == 2 and parts[1] else None
+        key = (symbol, mic_code)
         if key not in seen:
-            output.append(EquityWatch(symbol=symbol, exchange=exchange))
+            output.append(EquityWatch(symbol=symbol, mic_code=mic_code))
             seen.add(key)
     return output[:20]
 
@@ -100,7 +100,7 @@ def _equity_rows(errors: list[str]) -> tuple[list[str], str]:
     watches = _watchlist()
     if not watches:
         return [], (
-            "Set PERSONAL_EQUITY_WATCHLIST with entries such as BBCA:IDX or AAPL:NASDAQ. "
+            "Set PERSONAL_EQUITY_WATCHLIST with entries such as BBCA@XIDX or AAPL@XNAS. "
             "No placeholder equity data is generated."
         )
     if not os.environ.get("TWELVE_DATA_API_KEY", "").strip():
@@ -114,12 +114,12 @@ def _equity_rows(errors: list[str]) -> tuple[list[str], str]:
         try:
             result = fetch_daily_equity_history(
                 watch.symbol,
-                exchange=watch.exchange,
+                mic_code=watch.mic_code,
                 outputsize=60,
             )
             assessment = assess_daily_prices(watch.symbol, result.data["bars"])
         except Exception as exc:
-            label = f"{watch.symbol}:{watch.exchange}" if watch.exchange else watch.symbol
+            label = f"{watch.symbol}@{watch.mic_code}" if watch.mic_code else watch.symbol
             errors.append(f"{label} unavailable: {type(exc).__name__}")
             continue
         source = "Twelve Data personal/internal source"
