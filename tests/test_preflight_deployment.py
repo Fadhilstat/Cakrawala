@@ -1,16 +1,26 @@
 from __future__ import annotations
 
+import importlib.util
 import sys
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPTS = ROOT / "scripts"
-if str(SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS))
+SCRIPT_PATH = ROOT / "scripts" / "preflight_deployment.py"
 
-import preflight_deployment
+
+def _load_preflight_module() -> ModuleType:
+    spec = importlib.util.spec_from_file_location("preflight_deployment", SCRIPT_PATH)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Unable to load preflight deployment script")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+preflight_deployment = _load_preflight_module()
 
 
 @pytest.fixture(autouse=True)
