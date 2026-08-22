@@ -6,7 +6,6 @@ import pytest
 
 import scripts.verify_personal_release as release
 
-
 SECURITY_HEADERS = {
     "cache-control": "no-store",
     "x-robots-tag": "noindex, nofollow",
