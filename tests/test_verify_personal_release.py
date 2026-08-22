@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 import pytest
+
 import scripts.verify_personal_release as release
 
 
