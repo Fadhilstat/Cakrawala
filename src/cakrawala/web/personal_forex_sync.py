@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hmac
+import json
 import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -47,7 +48,14 @@ def install_personal_forex_sync_route(server: Flask) -> None:
         if not request.is_json:
             return jsonify({"status": "json_required"}), 415
 
-        raw_payload = request.get_json(silent=True)
+        raw_body = request.get_data(cache=True)
+        if len(raw_body) > MAX_SYNC_BYTES:
+            return jsonify({"status": "payload_too_large"}), 413
+        try:
+            raw_payload = json.loads(raw_body)
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return jsonify({"status": "invalid_json"}), 400
+
         try:
             payload = parse_sync_payload(raw_payload)
         except ValueError as exc:
