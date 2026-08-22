@@ -32,7 +32,12 @@ def _metric(label: str, value: str, note: str = "", tone: str = "") -> str:
     )
 
 
-def _load_private() -> tuple[AccountSnapshot | None, list[PositionSnapshot], list[ForexDeal], str]:
+def _load_private() -> tuple[
+    AccountSnapshot | None,
+    list[PositionSnapshot],
+    list[ForexDeal],
+    str,
+]:
     database_url = os.environ.get("DATABASE_PERSONAL_URL", "").strip()
     owner_sub = str(session.get("owner_id", "")).strip()
     if not database_url:
@@ -65,7 +70,11 @@ def _tone(state: ForexRiskState) -> str:
 
 
 def _reason_list(assessment: ForexRiskAssessment) -> str:
-    return "<ul>" + "".join(f"<li>{escape(reason)}</li>" for reason in assessment.reasons) + "</ul>"
+    rows = "".join(
+        f"<li>{escape(reason)}</li>"
+        for reason in assessment.reasons
+    )
+    return f"<ul>{rows}</ul>"
 
 
 def _styles() -> str:
@@ -92,8 +101,16 @@ a { color: var(--blue); }
 h1 { margin: 6px 0; }
 h2 { margin: 0 0 13px; font-size: 17px; }
 .muted, .note, .label { color: var(--muted); }
-.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.metric, .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 13px; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.metric, .panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 13px;
+}
 .metric { padding: 15px; }
 .panel { padding: 17px; margin-top: 14px; }
 .label, .note { font-size: 11px; }
@@ -103,9 +120,17 @@ h2 { margin: 0 0 13px; font-size: 17px; }
 .metric.locked .value, .state.locked { color: var(--red); }
 .state { font-size: 34px; font-weight: 900; }
 ul { margin-bottom: 0; line-height: 1.7; }
-.policy { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 18px; }
+.policy {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 18px;
+}
 .policy div { border-bottom: 1px solid var(--line); padding: 8px 0; }
-.warning { border: 1px solid #6c5835; border-radius: 10px; padding: 12px 14px; }
+.warning {
+  border: 1px solid #6c5835;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
 @media (max-width: 850px) {
   .grid, .policy { grid-template-columns: repeat(2, 1fr); }
 }
@@ -120,9 +145,17 @@ ul { margin-bottom: 0; line-height: 1.7; }
 def _page(display_name: str) -> str:
     config = load_yaml("configs/personal_forex.yaml")
     risk_values = dict(config.get("risk", {}))
+    workspace = dict(config.get("workspace", {}))
+    timezone_name = str(workspace.get("timezone", "UTC"))
     policy = policy_from_mapping(risk_values)
     snapshot, positions, deals, storage_error = _load_private()
-    assessment = assess_forex_risk(snapshot, positions, deals, policy)
+    assessment = assess_forex_risk(
+        snapshot,
+        positions,
+        deals,
+        policy,
+        timezone_name=timezone_name,
+    )
     tone = _tone(assessment.state)
     warning = (
         f"<div class='warning'>{escape(storage_error)}</div>"
@@ -134,18 +167,32 @@ def _page(display_name: str) -> str:
         margin = f"{snapshot.margin_level_percent:,.0f}%"
 
     policy_rows = [
-        ("Daily closed loss limit", f"{policy.daily_closed_loss_limit_percent:.1f}%"),
+        (
+            "Daily closed loss limit",
+            f"{policy.daily_closed_loss_limit_percent:.1f}%",
+        ),
         ("Floating loss limit", f"{policy.floating_loss_limit_percent:.1f}%"),
-        ("Closed-deal drawdown limit", f"{policy.closed_deal_drawdown_limit_percent:.1f}%"),
+        (
+            "Closed-deal drawdown limit",
+            f"{policy.closed_deal_drawdown_limit_percent:.1f}%",
+        ),
         ("Minimum margin level", f"{policy.minimum_margin_level_percent:.0f}%"),
         ("Maximum open positions", str(policy.maximum_open_positions)),
         ("Positions without stop", str(policy.maximum_positions_without_stop)),
         ("Snapshot stale after", f"{policy.snapshot_stale_minutes} min"),
+        ("Daily review timezone", timezone_name),
     ]
     policy_html = "".join(
-        f"<div><strong>{escape(label)}</strong><br><span class='muted'>{escape(value)}</span></div>"
+        "<div>"
+        f"<strong>{escape(label)}</strong><br>"
+        f"<span class='muted'>{escape(value)}</span>"
+        "</div>"
         for label, value in policy_rows
     )
+
+    snapshot_age = "N/A"
+    if assessment.snapshot_age_minutes is not None:
+        snapshot_age = f"{assessment.snapshot_age_minutes:.1f} min"
 
     return "".join(
         [
@@ -157,29 +204,54 @@ def _page(display_name: str) -> str:
             "</head><body><main>",
             "<div class='top'><div><div class='eyebrow'>RISK COMMAND CENTER</div>",
             "<h1>Personal Forex Risk Guard</h1>",
-            f"<div class='muted'>Verified owner: {escape(display_name or 'Owner')}</div></div>",
-            "<div><a href='/personal/forex'>Command Center</a> | ",
+            f"<div class='muted'>Verified owner: {escape(display_name or 'Owner')}</div>",
+            "</div><div><a href='/personal/forex'>Command Center</a> | ",
             "<a href='/personal/forex/review'>Summary Analytics</a> | ",
+            "<a href='/personal/forex/system'>System & Setup</a> | ",
             "<a href='/logout'>Logout</a></div></div>",
             warning,
             "<div class='panel'><div class='eyebrow'>CURRENT REVIEW STATE</div>",
             f"<div class='state {tone}'>{escape(assessment.state.value)}</div>",
-            "<p class='muted'>This state is a personal risk review gate. It does not send, block, ",
-            "or modify broker orders.</p>",
+            "<p class='muted'>This state is a personal risk review gate. ",
+            "It does not send, block, or modify broker orders.</p>",
             _reason_list(assessment),
             "</div>",
             "<div class='grid'>",
-            _metric("Daily closed P/L", _pct(assessment.daily_closed_pnl_percent), "Percent of current balance", tone),
-            _metric("Floating P/L", _pct(assessment.floating_pnl_percent), "Percent of current balance", tone),
-            _metric("Closed-deal drawdown", _pct(assessment.closed_deal_drawdown_percent), "Imported closed-deal curve", tone),
-            _metric("Margin level", margin, "Latest private account snapshot", tone),
-            _metric("Open positions", str(assessment.open_positions), "Latest synchronized snapshot"),
-            _metric("Without stop", str(assessment.positions_without_stop), "Policy check"),
             _metric(
-                "Snapshot age",
-                "N/A" if assessment.snapshot_age_minutes is None else f"{assessment.snapshot_age_minutes:.1f} min",
-                "Freshness check",
+                "Daily closed P/L",
+                _pct(assessment.daily_closed_pnl_percent),
+                f"Percent of current balance, {timezone_name}",
+                tone,
             ),
+            _metric(
+                "Floating P/L",
+                _pct(assessment.floating_pnl_percent),
+                "Percent of current balance",
+                tone,
+            ),
+            _metric(
+                "Closed-deal drawdown",
+                _pct(assessment.closed_deal_drawdown_percent),
+                "Imported closed-deal curve",
+                tone,
+            ),
+            _metric(
+                "Margin level",
+                margin,
+                "Latest private account snapshot",
+                tone,
+            ),
+            _metric(
+                "Open positions",
+                str(assessment.open_positions),
+                "Latest synchronized snapshot",
+            ),
+            _metric(
+                "Without stop",
+                str(assessment.positions_without_stop),
+                "Policy check",
+            ),
+            _metric("Snapshot age", snapshot_age, "Freshness check"),
             _metric("Execution", "MANUAL", "No broker order endpoint"),
             "</div>",
             "<div class='panel'><h2>Configured personal policy</h2>",
@@ -187,9 +259,10 @@ def _page(display_name: str) -> str:
             policy_html,
             "</div></div>",
             "<div class='panel'><h2>Interpretation boundary</h2>",
-            "<p class='muted'>Drawdown here comes from the imported closed-deal P/L series and is ",
-            "scaled against the latest balance. It is useful for discipline, but it is not a ",
-            "replacement for the broker's complete historical equity curve.</p></div>",
+            "<p class='muted'>Drawdown here comes from the imported closed-deal P/L series ",
+            "and is scaled against the latest balance. It is useful for discipline, but it ",
+            "is not a replacement for the broker's complete historical equity curve.</p>",
+            "</div>",
             "</main></body></html>",
         ]
     )
