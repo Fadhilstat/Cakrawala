@@ -6,6 +6,7 @@ from pathlib import Path
 
 from cakrawala.personal.migrations import (
     MigrationError,
+    MigrationStatus,
     apply_migrations,
     discover_migrations,
     inspect_database,
@@ -38,11 +39,10 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _print_status(rows: list[object]) -> None:
+def _print_status(rows: list[MigrationStatus]) -> None:
     for row in rows:
-        migration = getattr(row, "migration")
-        state = str(getattr(row, "state"))
-        print(f"{migration.version:03d} {state:<7} {migration.name}")
+        migration = row.migration
+        print(f"{migration.version:03d} {row.state:<7} {migration.name}")
 
 
 def main() -> int:
