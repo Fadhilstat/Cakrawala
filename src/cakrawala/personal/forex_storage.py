@@ -121,26 +121,26 @@ def latest_position_snapshots(
     limit: int = 200,
 ) -> list[PositionSnapshot]:
     _validate(database_url, owner_sub, limit)
-    filter_sql = ""
-    filter_values: list[Any] = []
+    account_filter = ""
+    account_values: list[Any] = []
     if account_name:
-        filter_sql = " AND account_name = %s"
-        filter_values.append(account_name)
+        account_filter = " AND account_name = %s"
+        account_values.append(account_name)
     query = f"""
         WITH latest AS (
             SELECT MAX(captured_at) AS captured_at
             FROM forex_position_snapshots
-            WHERE owner_sub = %s{filter_sql}
+            WHERE owner_sub = %s{account_filter}
         )
         SELECT ticket, account_name, symbol, side, volume, entry_price,
                current_price, stop_loss, take_profit, floating_pnl, captured_at
         FROM forex_position_snapshots
-        WHERE owner_sub = %s
+        WHERE owner_sub = %s{account_filter}
           AND captured_at = (SELECT captured_at FROM latest)
         ORDER BY symbol, ticket
         LIMIT %s
     """
-    values = [owner_sub, *filter_values, owner_sub, limit]
+    values = [owner_sub, *account_values, owner_sub, *account_values, limit]
     with (
         psycopg.connect(database_url, connect_timeout=8) as connection,
         connection.cursor() as cursor,
