@@ -157,7 +157,13 @@ def parse_calendar_snapshot(payload: Any) -> EconomicCalendarSnapshot:
     if len(events_raw) > MAX_EVENTS:
         raise ValueError(f"economic calendar snapshot is limited to {MAX_EVENTS} events")
 
-    events = tuple(sorted((_parse_event(item) for item in events_raw), key=lambda item: item.released_at, reverse=True))
+    events = tuple(
+        sorted(
+            (_parse_event(item) for item in events_raw),
+            key=lambda item: item.released_at,
+            reverse=True,
+        )
+    )
     return EconomicCalendarSnapshot(
         generated_at=_parse_datetime(payload.get("generated_at"), "generated_at"),
         as_of=str(payload.get("as_of", "")).strip(),
@@ -247,7 +253,8 @@ def macro_context_for_pair(
         reasons = (
             f"Recent macro evidence covers {relevant} scored releases for {base} and {quote}.",
             f"{verified} of those releases have an official actual-value cross-check.",
-            "Macro context may confirm or veto price-trend evidence, but it cannot create a trade signal by itself.",
+            "Macro context may confirm or veto price-trend evidence, but it cannot "
+            "create a trade signal by itself.",
         )
 
     if alignment not in _ALLOWED_MACRO_ALIGNMENT:
