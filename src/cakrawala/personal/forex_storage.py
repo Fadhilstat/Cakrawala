@@ -80,7 +80,7 @@ def list_forex_deals(
     query = f"""
         SELECT ticket, account_name, symbol, side, volume, entry_price,
                exit_price, opened_at, closed_at, realized_pnl, commission,
-               swap, result_r
+               swap, fee, result_r
         FROM forex_deals
         WHERE owner_sub = %s{account_filter}
         ORDER BY COALESCE(closed_at, opened_at) DESC
@@ -106,7 +106,8 @@ def list_forex_deals(
             realized_pnl=float(row[9]),
             commission=float(row[10]),
             swap=float(row[11]),
-            result_r=float(row[12]) if row[12] is not None else None,
+            fee=float(row[12]),
+            result_r=float(row[13]) if row[13] is not None else None,
         )
         for row in rows
     ]
@@ -249,10 +250,10 @@ def ingest_sync_payload(
                     INSERT INTO forex_deals (
                         owner_sub, ticket, account_name, symbol, side, volume,
                         entry_price, exit_price, opened_at, closed_at,
-                        realized_pnl, commission, swap, result_r, source
+                        realized_pnl, commission, swap, fee, result_r, source
                     ) VALUES (
                         %s, %s, %s, %s, %s, %s, %s, %s,
-                        %s, %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s, %s
                     )
                     ON CONFLICT (owner_sub, account_name, ticket) DO NOTHING
                     """,
@@ -270,6 +271,7 @@ def ingest_sync_payload(
                         deal.realized_pnl,
                         deal.commission,
                         deal.swap,
+                        deal.fee,
                         deal.result_r,
                         payload.source,
                     ),
