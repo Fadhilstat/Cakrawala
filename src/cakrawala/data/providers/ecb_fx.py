@@ -9,6 +9,7 @@ from cakrawala.data.provenance import build_provenance
 from cakrawala.data.providers.base import ProviderResult
 
 ECB_90D_URL = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist-90d.xml"
+ECB_HISTORY_URL = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml"
 SUPPORTED_PAIRS = (
     "EURUSD",
     "GBPUSD",
@@ -138,18 +139,28 @@ def parse_ecb_pairs(xml_text: str) -> list[FxPairSnapshot]:
     return output
 
 
-def _fetch_ecb_xml() -> tuple[str, bytes, str]:
+def parse_ecb_pair_history(xml_text: str, pair: str) -> list[tuple[date, float]]:
+    normalized = pair.upper().strip()
+    if normalized not in SUPPORTED_PAIRS:
+        raise ValueError("unsupported FX pair")
+    history = _pair_history(_parse_series(xml_text), normalized)
+    if len(history) < 2:
+        raise ValueError("ECB response contained insufficient pair history")
+    return history
+
+
+def _fetch_ecb_xml(url: str, *, max_bytes: int) -> tuple[str, bytes, str]:
     policy = HttpPolicy(
         allowed_hosts=frozenset({"www.ecb.europa.eu"}),
         accepted_content_types=("text/xml", "application/xml"),
-        max_bytes=2 * 1024 * 1024,
+        max_bytes=max_bytes,
     )
-    response = get_text(ECB_90D_URL, policy=policy)
+    response = get_text(url, policy=policy)
     return response.text, response.raw, response.url
 
 
 def fetch_currency_strength() -> ProviderResult:
-    text, raw, url = _fetch_ecb_xml()
+    text, raw, url = _fetch_ecb_xml(ECB_90D_URL, max_bytes=2 * 1024 * 1024)
     data = parse_ecb_strength(text)
     return ProviderResult(
         provider="ecb_fx_reference_rates",
@@ -159,10 +170,20 @@ def fetch_currency_strength() -> ProviderResult:
 
 
 def fetch_forex_pairs() -> ProviderResult:
-    text, raw, url = _fetch_ecb_xml()
+    text, raw, url = _fetch_ecb_xml(ECB_90D_URL, max_bytes=2 * 1024 * 1024)
     data = parse_ecb_pairs(text)
     return ProviderResult(
         provider="ecb_fx_reference_rates",
         data=data,
         provenance=build_provenance("ecb_fx_reference_rates", url, raw),
+    )
+
+
+def fetch_forex_pair_history(pair: str) -> ProviderResult:
+    text, raw, url = _fetch_ecb_xml(ECB_HISTORY_URL, max_bytes=8 * 1024 * 1024)
+    data = parse_ecb_pair_history(text, pair)
+    return ProviderResult(
+        provider="ecb_fx_reference_rates_history",
+        data=data,
+        provenance=build_provenance("ecb_fx_reference_rates_history", url, raw),
     )

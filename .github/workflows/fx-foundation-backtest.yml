@@ -1,0 +1,76 @@
+name: FX foundation backtest
+
+on:
+  pull_request:
+    paths:
+      - 'src/cakrawala/models/fx_foundation.py'
+      - 'src/cakrawala/data/providers/ecb_fx.py'
+      - 'scripts/run_fx_foundation_backtest.py'
+      - 'tests/test_fx_foundation.py'
+      - 'pyproject.toml'
+      - '.github/workflows/fx-foundation-backtest.yml'
+  schedule:
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  HF_HUB_DISABLE_TELEMETRY: '1'
+  TOKENIZERS_PARALLELISM: 'false'
+
+jobs:
+  chronos-fx-sandbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e '.[foundation]' 'pytest>=8.3,<10'
+      - run: python scripts/check_no_em_dash.py
+      - run: pytest tests/test_fx_foundation.py
+      - name: Run Chronos-Bolt FX walk-forward research
+        run: python scripts/run_fx_foundation_backtest.py
+      - name: Write research summary
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          data = json.loads(Path('artifacts/backtests/fx_foundation_latest.json').read_text())
+          lines = [
+              '## FX foundation-model research',
+              '',
+              f"- Model: {data['model']}",
+              f"- Revision: {data['model_revision']}",
+              f"- Research gate: {'PASS' if data['research_gate_passed'] else 'FAIL'}",
+              '- Production promoted: no',
+              '',
+          ]
+          for pair, payload in data['pairs'].items():
+              metrics = payload['metrics']
+              lines.extend(
+                  [
+                      f"### {pair}",
+                      f"- MAE: {metrics['mae']:.6f}",
+                      f"- Last-value MAE: {metrics['baseline_mae']:.6f}",
+                      f"- MAE improvement: {metrics['mae_improvement']:.2%}",
+                      f"- Direction accuracy: {metrics['direction_accuracy']:.2%}",
+                      f"- 80% interval coverage: {metrics['interval_coverage']:.2%}",
+                      '',
+                  ]
+              )
+          lines.append('Research only. No model promotion or broker execution is enabled.')
+          Path(os.environ['GITHUB_STEP_SUMMARY']).write_text('\n'.join(lines) + '\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fx-foundation-backtest
+          path: artifacts/backtests/fx_foundation_latest.json
+          if-no-files-found: error
+          retention-days: 30
