@@ -8,7 +8,6 @@ from cakrawala.personal.forex_analytics import AccountSnapshot, ForexDeal
 from cakrawala.personal.forex_risk import ForexRiskPolicy, ForexRiskState, assess_forex_risk
 from cakrawala.personal.forex_sync import PositionSnapshot
 
-
 POLICY = ForexRiskPolicy(
     daily_closed_loss_limit_percent=3,
     floating_loss_limit_percent=2,
