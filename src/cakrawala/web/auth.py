@@ -7,10 +7,11 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
-from flask import Flask, Response, redirect, request, session
+from flask import Flask, Response, jsonify, redirect, request, session
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash
 
+from cakrawala import __version__
 from cakrawala.web.personal_ai_lab import install_personal_ai_lab_route
 from cakrawala.web.personal_forex import install_personal_forex_route
 from cakrawala.web.personal_forex_review import install_personal_forex_review_route
@@ -141,6 +142,16 @@ def install_owner_auth(server: Flask) -> WebAuthConfig | None:
                 "camera=(), microphone=(), geolocation=(), payment=()"
             )
         return response
+
+    @server.get("/releasez")
+    def releasez() -> Any:
+        return jsonify(
+            {
+                "service": "cakrawala-personal",
+                "status": "ok",
+                "version": __version__,
+            }
+        )
 
     @server.route("/login", methods=["GET", "POST"])
     def login() -> Any:
