@@ -235,8 +235,18 @@ def _account_metrics(snapshot: AccountSnapshot | None, deals: list[ForexDeal]) -
         [
             _metric("Current balance", f"${snapshot.balance:,.2f}", snapshot.account_name),
             _metric("Current equity", f"${snapshot.equity:,.2f}", margin),
-            _metric("Floating P/L", _money(snapshot.floating_pnl), "Latest snapshot", floating_tone),
-            _metric("Today P/L", _money(today_pnl), "Closed deals, UTC day", today_tone),
+            _metric(
+                "Floating P/L",
+                _money(snapshot.floating_pnl),
+                "Latest snapshot",
+                floating_tone,
+            ),
+            _metric(
+                "Today P/L",
+                _money(today_pnl),
+                "Closed deals, UTC day",
+                today_tone,
+            ),
         ]
     )
 
@@ -252,10 +262,26 @@ def _performance_metrics(deals: list[ForexDeal]) -> str:
                 win_rate,
                 f"{performance.winners} win / {performance.losers} loss",
             ),
-            _metric("Profit factor", _number(performance.profit_factor), "Gross profit / gross loss"),
-            _metric("Expectancy", _money(performance.expectancy), "Average net P/L per trade"),
-            _metric("Average R", _number(performance.average_r), "Trades with R recorded"),
-            _metric("Max drawdown", f"${performance.max_drawdown:,.2f}", "Closed-trade curve"),
+            _metric(
+                "Profit factor",
+                _number(performance.profit_factor),
+                "Gross profit / gross loss",
+            ),
+            _metric(
+                "Expectancy",
+                _money(performance.expectancy),
+                "Average net P/L per trade",
+            ),
+            _metric(
+                "Average R",
+                _number(performance.average_r),
+                "Trades with R recorded",
+            ),
+            _metric(
+                "Max drawdown",
+                f"${performance.max_drawdown:,.2f}",
+                "Closed-trade curve",
+            ),
         ]
     )
 
@@ -301,7 +327,17 @@ def _trade_history(deals: list[ForexDeal]) -> str:
             ]
         )
     return _table(
-        ["Symbol", "Side", "Lots", "Entry", "Exit", "Status", "Net P/L", "Open", "Close"],
+        [
+            "Symbol",
+            "Side",
+            "Lots",
+            "Entry",
+            "Exit",
+            "Status",
+            "Net P/L",
+            "Open",
+            "Close",
+        ],
         rows,
     )
 
@@ -377,22 +413,56 @@ a { color: var(--cyan); }
 h1 { margin: 5px 0 3px; font-size: 28px; }
 h2 { font-size: 17px; margin: 0 0 14px; }
 .muted, .metric-label, .metric-note, .source { color: var(--muted); }
-.metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.metric, .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 13px; }
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.metric, .panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 13px;
+}
 .metric { padding: 15px; }
 .panel { padding: 17px; margin-top: 14px; }
 .metric-label, .metric-note, .source { font-size: 11px; }
 .metric-value { font-size: 22px; font-weight: 800; margin-top: 7px; }
 .metric.positive .metric-value { color: var(--green); }
 .metric.negative .metric-value { color: var(--red); }
-.grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(340px, .85fr); gap: 14px; }
-.triple { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(340px, .85fr);
+  gap: 14px;
+}
+.triple {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
 .pairbar { display: flex; gap: 8px; overflow: auto; padding: 10px 0; }
-.chip { white-space: nowrap; border: 1px solid #275f50; color: var(--green); padding: 6px 9px; border-radius: 999px; font-size: 10px; font-weight: 800; }
-.warning { padding: 12px 14px; border: 1px solid #6c5835; border-radius: 10px; margin: 12px 0; }
+.chip {
+  white-space: nowrap;
+  border: 1px solid #275f50;
+  color: var(--green);
+  padding: 6px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+}
+.warning {
+  padding: 12px 14px;
+  border: 1px solid #6c5835;
+  border-radius: 10px;
+  margin: 12px 0;
+}
 .table-wrap { overflow: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
-th, td { padding: 9px 7px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+th, td {
+  padding: 9px 7px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+}
 th { color: #aebdd1; }
 .news-card { padding: 9px 0; border-bottom: 1px solid var(--line); }
 .calendar-title { font-weight: 800; margin-bottom: 9px; }
