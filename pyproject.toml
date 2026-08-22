@@ -54,6 +54,7 @@ exclude = ["tests*", "api*", "migrations*", "docs*", "scripts*"]
 app = ["assets/*.css"]
 configs = ["*.yaml"]
 "data.ai_briefs" = ["*.json"]
+"data.economic_calendar" = ["*.json"]
 
 [tool.vercel]
 entrypoint = "main:app"
