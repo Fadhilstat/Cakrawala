@@ -1,0 +1,85 @@
+as_of: 2026-08-22
+policy:
+  install_automatically: false
+  production_signal_override_allowed: false
+  execution_allowed: false
+  backtest_required_before_promotion: true
+  point_in_time_evaluation_required: true
+  license_review_required: true
+  free_runtime_preferred: true
+
+candidates:
+  - name: TradingAgents
+    type: multi-agent trading research architecture
+    source: https://github.com/TauricResearch/TradingAgents
+    license: Apache-2.0
+    status: architecture_reference
+    free_fit: high
+    planned_use: "Adapt the debate, risk challenge, and editor workflow as independent Cakrawala research roles."
+    risks:
+      - agent consensus can amplify shared errors
+      - LLM narratives are not trade signals
+      - data leakage must be prevented in any historical evaluation
+
+  - name: FinRL
+    type: reinforcement-learning research framework
+    source: https://github.com/AI4Finance-Foundation/FinRL
+    license: MIT
+    status: sandbox_candidate
+    free_fit: medium
+    planned_use: "Benchmark RL research patterns in offline experiments only after simpler baselines are beaten."
+    risks:
+      - reward design can create misleading backtests
+      - transaction costs and market impact are easy to understate
+      - RL is too heavy for the Vercel request path
+
+  - name: Microsoft Qlib
+    type: quantitative research platform
+    source: https://github.com/microsoft/qlib
+    license: MIT
+    status: architecture_reference
+    free_fit: high
+    planned_use: "Study dataset, experiment, model, and evaluation separation for reproducible research."
+    risks:
+      - stock-oriented workflows need adaptation for FX and crypto
+      - framework scope is larger than Cakrawala needs for the MVP
+
+  - name: Amazon Chronos-Bolt Small
+    type: time-series foundation model
+    source: https://huggingface.co/amazon/chronos-bolt-small
+    license: Apache-2.0
+    status: sandbox_candidate
+    free_fit: medium
+    planned_use: "Zero-shot probabilistic forecasting benchmark in GitHub Actions or local research, never inline on Vercel."
+    notes:
+      - "Model card reports about 47.7M parameters."
+      - "No hosted inference provider is required for an offline sandbox."
+    risks:
+      - generic time-series pretraining does not imply market edge
+      - model downloads add CI time and network dependence
+      - forecasts require walk-forward validation against naive baselines
+
+  - name: IBM Granite TinyTimeMixer R2.1
+    type: time-series foundation model
+    source: https://huggingface.co/ibm-granite/granite-timeseries-ttm-r2
+    license: Apache-2.0
+    status: sandbox_candidate
+    free_fit: high
+    planned_use: "Small-footprint multivariate forecasting benchmark for scheduled research runs."
+    notes:
+      - "The model repository provides small TinyTimeMixer checkpoints and multiple context horizons."
+    risks:
+      - branch and context configuration must be pinned for reproducibility
+      - generic benchmark performance is not evidence of trading profitability
+
+  - name: ProsusAI FinBERT
+    type: financial text sentiment model
+    source: https://huggingface.co/ProsusAI/finbert
+    license: verify_before_use
+    status: observe_only
+    free_fit: medium
+    planned_use: "Candidate for headline sentiment tagging only after license and model-card constraints are fully verified."
+    risks:
+      - sentiment is not direction prediction
+      - financial headlines can be stale, duplicated, or context dependent
+      - license must be confirmed before integration
