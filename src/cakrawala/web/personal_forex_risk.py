@@ -93,11 +93,26 @@ def _styles() -> str:
   --blue: #65c7ff;
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); font-family: Inter, system-ui; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, system-ui;
+}
 main { max-width: 1380px; margin: auto; padding: 24px 22px 60px; }
 a { color: var(--blue); }
-.top { display: flex; justify-content: space-between; gap: 18px; align-items: center; }
-.eyebrow { color: var(--blue); font-size: 11px; font-weight: 800; letter-spacing: .14em; }
+.top {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+}
+.eyebrow {
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .14em;
+}
 h1 { margin: 6px 0; }
 h2 { margin: 0 0 13px; font-size: 17px; }
 .muted, .note, .label { color: var(--muted); }
@@ -142,6 +157,37 @@ ul { margin-bottom: 0; line-height: 1.7; }
 """
 
 
+def _policy_rows(
+    policy: Any,
+    timezone_name: str,
+) -> list[tuple[str, str]]:
+    return [
+        (
+            "Daily closed loss limit",
+            f"{policy.daily_closed_loss_limit_percent:.1f}%",
+        ),
+        (
+            "Floating loss limit",
+            f"{policy.floating_loss_limit_percent:.1f}%",
+        ),
+        (
+            "Closed-deal drawdown limit",
+            f"{policy.closed_deal_drawdown_limit_percent:.1f}%",
+        ),
+        (
+            "Minimum margin level",
+            f"{policy.minimum_margin_level_percent:.0f}%",
+        ),
+        ("Maximum open positions", str(policy.maximum_open_positions)),
+        (
+            "Positions without stop",
+            str(policy.maximum_positions_without_stop),
+        ),
+        ("Snapshot stale after", f"{policy.snapshot_stale_minutes} min"),
+        ("Daily review timezone", timezone_name),
+    ]
+
+
 def _page(display_name: str) -> str:
     config = load_yaml("configs/personal_forex.yaml")
     risk_values = dict(config.get("risk", {}))
@@ -166,28 +212,12 @@ def _page(display_name: str) -> str:
     if snapshot is not None and snapshot.margin_level_percent is not None:
         margin = f"{snapshot.margin_level_percent:,.0f}%"
 
-    policy_rows = [
-        (
-            "Daily closed loss limit",
-            f"{policy.daily_closed_loss_limit_percent:.1f}%",
-        ),
-        ("Floating loss limit", f"{policy.floating_loss_limit_percent:.1f}%"),
-        (
-            "Closed-deal drawdown limit",
-            f"{policy.closed_deal_drawdown_limit_percent:.1f}%",
-        ),
-        ("Minimum margin level", f"{policy.minimum_margin_level_percent:.0f}%"),
-        ("Maximum open positions", str(policy.maximum_open_positions)),
-        ("Positions without stop", str(policy.maximum_positions_without_stop)),
-        ("Snapshot stale after", f"{policy.snapshot_stale_minutes} min"),
-        ("Daily review timezone", timezone_name),
-    ]
     policy_html = "".join(
         "<div>"
         f"<strong>{escape(label)}</strong><br>"
         f"<span class='muted'>{escape(value)}</span>"
         "</div>"
-        for label, value in policy_rows
+        for label, value in _policy_rows(policy, timezone_name)
     )
 
     snapshot_age = "N/A"
@@ -202,16 +232,20 @@ def _page(display_name: str) -> str:
             "<title>Cakrawala Forex Risk</title>",
             _styles(),
             "</head><body><main>",
-            "<div class='top'><div><div class='eyebrow'>RISK COMMAND CENTER</div>",
+            "<div class='top'><div>",
+            "<div class='eyebrow'>RISK COMMAND CENTER</div>",
             "<h1>Personal Forex Risk Guard</h1>",
-            f"<div class='muted'>Verified owner: {escape(display_name or 'Owner')}</div>",
+            f"<div class='muted'>Verified owner: "
+            f"{escape(display_name or 'Owner')}</div>",
             "</div><div><a href='/personal/forex'>Command Center</a> | ",
             "<a href='/personal/forex/review'>Summary Analytics</a> | ",
             "<a href='/personal/forex/system'>System & Setup</a> | ",
             "<a href='/logout'>Logout</a></div></div>",
             warning,
-            "<div class='panel'><div class='eyebrow'>CURRENT REVIEW STATE</div>",
-            f"<div class='state {tone}'>{escape(assessment.state.value)}</div>",
+            "<div class='panel'>",
+            "<div class='eyebrow'>CURRENT REVIEW STATE</div>",
+            f"<div class='state {tone}'>"
+            f"{escape(assessment.state.value)}</div>",
             "<p class='muted'>This state is a personal risk review gate. ",
             "It does not send, block, or modify broker orders.</p>",
             _reason_list(assessment),
@@ -259,9 +293,10 @@ def _page(display_name: str) -> str:
             policy_html,
             "</div></div>",
             "<div class='panel'><h2>Interpretation boundary</h2>",
-            "<p class='muted'>Drawdown here comes from the imported closed-deal P/L series ",
-            "and is scaled against the latest balance. It is useful for discipline, but it ",
-            "is not a replacement for the broker's complete historical equity curve.</p>",
+            "<p class='muted'>Drawdown here comes from the imported closed-deal ",
+            "P/L series and is scaled against the latest balance. It is useful for ",
+            "discipline, but it is not a replacement for the broker's complete ",
+            "historical equity curve.</p>",
             "</div>",
             "</main></body></html>",
         ]
