@@ -7,10 +7,11 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
-from flask import Flask, Response, redirect, request, session
+from flask import Flask, Response, jsonify, redirect, request, session
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash
 
+from cakrawala import __version__
 from cakrawala.web.personal_ai_lab import install_personal_ai_lab_route
 from cakrawala.web.personal_forex import install_personal_forex_route
 from cakrawala.web.personal_forex_review import install_personal_forex_review_route
@@ -88,10 +89,6 @@ def _login_page(message: str = "") -> Response:
         ]
     )
     response = Response(body, mimetype="text/html")
-    response.headers["Cache-Control"] = "no-store"
-    response.headers["X-Robots-Tag"] = "noindex, nofollow"
-    response.headers["Referrer-Policy"] = "no-referrer"
-    response.headers["X-Frame-Options"] = "DENY"
     response.headers["Content-Security-Policy"] = (
         "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; "
         "base-uri 'none'; frame-ancestors 'none'"
@@ -121,7 +118,7 @@ def install_owner_auth(server: Flask) -> WebAuthConfig | None:
 
     @server.before_request
     def protect_personal_vercel() -> Any:
-        public_paths = {"/healthz", "/login", "/personal/forex/sync"}
+        public_paths = {"/healthz", "/releasez", "/login", "/personal/forex/sync"}
         if request.path in public_paths:
             return None
         if config is None:
@@ -133,6 +130,28 @@ def install_owner_auth(server: Flask) -> WebAuthConfig | None:
         if not bool(session.get("owner_verified", False)):
             return redirect("/login")
         return None
+
+    @server.after_request
+    def harden_private_responses(response: Response) -> Response:
+        if request.path != "/healthz":
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["X-Robots-Tag"] = "noindex, nofollow"
+            response.headers["Referrer-Policy"] = "no-referrer"
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["Permissions-Policy"] = (
+                "camera=(), microphone=(), geolocation=(), payment=()"
+            )
+        return response
+
+    @server.get("/releasez")
+    def releasez() -> Any:
+        return jsonify(
+            {
+                "service": "cakrawala-personal",
+                "status": "ok",
+                "version": __version__,
+            }
+        )
 
     @server.route("/login", methods=["GET", "POST"])
     def login() -> Any:

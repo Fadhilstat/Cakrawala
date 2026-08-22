@@ -44,7 +44,9 @@ python scripts/preflight_deployment.py --mode personal
 
 The preflight reports only `configured` or `missing`. It never prints secret values.
 
-After deployment, verify anonymously that private routes redirect to `/login`. Then verify owner login, logout, CSRF handling, secure session cookies, remembered-session behavior, `Cache-Control: no-store`, `X-Robots-Tag: noindex, nofollow`, frame protection, and fail-closed behavior when auth configuration is missing.
+After deployment, verify `/healthz` first. Then open `/releasez` and confirm the returned application version matches the intended release. The release fingerprint contains only service status and version information. It must not contain commit credentials, environment variables, owner identifiers, database information, or provider secrets.
+
+After the release fingerprint is correct, verify anonymously that private routes redirect to `/login`. Then verify owner login, logout, CSRF handling, secure session cookies, remembered-session behavior, `Cache-Control: no-store`, `X-Robots-Tag: noindex, nofollow`, frame protection, referrer policy, permissions policy, and fail-closed behavior when auth configuration is missing.
 
 Private routes currently include:
 
@@ -135,6 +137,8 @@ Use `@MIC` when venue disambiguation is needed. Validate each actual symbol and 
 A release is not considered complete until the deployed instances pass these checks:
 
 - Public Mode opens without authentication and exposes no Personal Mode navigation.
+- `/healthz` responds successfully on the intended build.
+- `/releasez` reports the intended application release and exposes no private configuration.
 - Every private browser route rejects or redirects anonymous access.
 - Owner login and logout work in the deployed runtime.
 - Security headers and secure cookie behavior match the application configuration.
