@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable
 from datetime import UTC, datetime
-from typing import Any, Iterable
+from typing import Any
 
 DEAL_TYPE_BUY = 0
 DEAL_TYPE_SELL = 1
