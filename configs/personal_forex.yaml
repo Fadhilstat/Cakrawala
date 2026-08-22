@@ -1,0 +1,34 @@
+workspace:
+  mode: manual_execution
+  timezone: Asia/Jakarta
+  history_display_limit: 500
+  source_freshness_minutes: 30
+
+risk:
+  max_risk_per_trade_percent: 1.0
+  daily_closed_loss_limit_percent: 3.0
+  floating_loss_limit_percent: 2.0
+  closed_deal_drawdown_limit_percent: 8.0
+  minimum_margin_level_percent: 150.0
+  maximum_open_positions: 5
+  maximum_positions_without_stop: 0
+  snapshot_stale_minutes: 15
+
+pairs:
+  - EURUSD
+  - GBPUSD
+  - USDJPY
+  - USDCHF
+  - AUDUSD
+  - USDCAD
+  - NZDUSD
+  - EURJPY
+  - GBPJPY
+  - EURGBP
+
+integration:
+  broker_execution: manual
+  mt5_sync: local_read_only
+  public_reference_rate: ecb
+  positioning: cftc_tff
+  us_event_calendar: bls
