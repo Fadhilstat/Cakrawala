@@ -1,0 +1,81 @@
+name: Vercel production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cakrawala-vercel-production
+  cancel-in-progress: false
+
+env:
+  VERCEL_ORG_ID: team_EaaiSPOJWbSimQAe1AzNVd39
+  VERCEL_PROJECT_ID: prj_3ih7VfiUB36tXvx0j5R9YQkfD6JF
+  CANONICAL_URL: https://cakrawala-intelligence-native.vercel.app
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check deployment credential
+        id: gate
+        shell: bash
+        run: |
+          if [ -n "$VERCEL_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Production deployment skipped because VERCEL_TOKEN is not configured."
+          fi
+
+      - name: Check repository release metadata
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          python scripts/check_no_em_dash.py
+          python - <<'PY'
+          import tomllib
+          from pathlib import Path
+
+          pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+          project_version = str(pyproject["project"]["version"])
+          namespace = {}
+          exec(Path("src/cakrawala/__init__.py").read_text(), namespace)
+          package_version = str(namespace["__version__"])
+          if project_version != package_version:
+              raise SystemExit(
+                  f"Release version mismatch: project={project_version}, package={package_version}"
+              )
+          print(f"Release metadata aligned at {project_version}")
+          PY
+
+      - name: Deploy current main to Vercel production
+        if: steps.gate.outputs.enabled == 'true'
+        id: deploy
+        shell: bash
+        run: |
+          deployment_url="$(npx --yes vercel@59.3.0 deploy --prod --yes --token "$VERCEL_TOKEN")"
+          if [ -z "$deployment_url" ]; then
+            echo "Vercel CLI did not return a deployment URL." >&2
+            exit 1
+          fi
+          echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
+          echo "Deployment created successfully."
+
+      - name: Verify deployed release and security boundary
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          python scripts/verify_personal_release.py \
+            --base-url "$CANONICAL_URL" \
+            --deployment-url "$DEPLOYMENT_URL"

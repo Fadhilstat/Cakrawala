@@ -44,6 +44,31 @@ python scripts/preflight_deployment.py --mode personal
 
 The preflight reports only `configured` or `missing`. It never prints secret values.
 
+### Production deployment path
+
+The repository contains `.github/workflows/vercel-production.yml` as the guarded production path for Personal Mode. It targets the existing `cakrawala-intelligence-native` Vercel project and runs after changes reach `main`, or through an explicit workflow dispatch.
+
+The workflow remains harmless until the repository secret `VERCEL_TOKEN` is configured. Create the token in the owner's Vercel account, then store it directly in GitHub Actions secrets. Do not paste it into source code, workflow YAML, issues, pull requests, chat transcripts, screenshots, or logs.
+
+The Vercel team ID and project ID used by the workflow are identifiers rather than credentials. Authentication still requires the private token.
+
+A production deployment performs these checks before it is accepted:
+
+1. the repository no-em-dash check passes;
+2. package and project release versions match;
+3. Vercel CLI deploys the exact checked-out `main` revision to production;
+4. `/healthz` responds successfully;
+5. `/releasez` returns the expected Cakrawala Personal Mode version;
+6. release and login responses include the expected private-response security headers;
+7. anonymous private routes either redirect to `/login` or fail closed with HTTP 503 when authentication has not been configured.
+
+The same verification can be run manually without credentials:
+
+```text
+python scripts/verify_personal_release.py \
+  --base-url https://cakrawala-intelligence-native.vercel.app
+```
+
 After deployment, verify `/healthz` first. Then open `/releasez` and confirm the returned application version matches the intended release. The release fingerprint contains only service status and version information. It must not contain commit credentials, environment variables, owner identifiers, database information, or provider secrets.
 
 After the release fingerprint is correct, verify anonymously that private routes redirect to `/login`. Then verify owner login, logout, CSRF handling, secure session cookies, remembered-session behavior, `Cache-Control: no-store`, `X-Robots-Tag: noindex, nofollow`, frame protection, referrer policy, permissions policy, and fail-closed behavior when auth configuration is missing.
