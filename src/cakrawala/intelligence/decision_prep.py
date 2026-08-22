@@ -2,6 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+_ALLOWED_MACRO_ALIGNMENTS = {
+    "SUPPORTS_UP",
+    "SUPPORTS_DOWN",
+    "MIXED",
+    "NO_CONTEXT",
+}
+
 
 @dataclass(frozen=True)
 class DecisionPrep:
@@ -11,6 +18,7 @@ class DecisionPrep:
     confidence: float
     valid_horizons: int
     event_risk: bool
+    macro_alignment: str
     reasons: tuple[str, ...]
 
 
@@ -32,7 +40,12 @@ def assess_fx_decision_prep(
     change_20d_pct: float | None,
     event_risk: bool,
     stale: bool = False,
+    macro_alignment: str = "NO_CONTEXT",
 ) -> DecisionPrep:
+    normalized_macro = macro_alignment.strip().upper()
+    if normalized_macro not in _ALLOWED_MACRO_ALIGNMENTS:
+        raise ValueError("macro_alignment is not supported")
+
     horizons = (
         ("1D", change_1d_pct, 1.0),
         ("5D", change_5d_pct, 2.0),
@@ -53,6 +66,7 @@ def assess_fx_decision_prep(
             confidence=0.0,
             valid_horizons=len(valid),
             event_risk=event_risk,
+            macro_alignment=normalized_macro,
             reasons=("Reference-rate evidence is stale.",),
         )
 
@@ -64,6 +78,7 @@ def assess_fx_decision_prep(
             confidence=0.0,
             valid_horizons=len(valid),
             event_risk=event_risk,
+            macro_alignment=normalized_macro,
             reasons=("Fewer than two trend horizons provide directional evidence.",),
         )
 
@@ -86,9 +101,27 @@ def assess_fx_decision_prep(
     if negative:
         reasons.append("Negative horizons: " + ", ".join(negative) + ".")
 
+    macro_conflict = (
+        (alignment == "UP" and normalized_macro == "SUPPORTS_DOWN")
+        or (alignment == "DOWN" and normalized_macro == "SUPPORTS_UP")
+    )
+    macro_support = (
+        (alignment == "UP" and normalized_macro == "SUPPORTS_UP")
+        or (alignment == "DOWN" and normalized_macro == "SUPPORTS_DOWN")
+    )
+
+    if normalized_macro == "MIXED":
+        reasons.append("Recent macro surprise evidence is mixed for this currency pair.")
+    elif macro_support:
+        reasons.append("Recent macro surprise evidence supports the price-trend direction.")
+    elif macro_conflict:
+        reasons.append("Recent macro surprise evidence conflicts with the price-trend direction.")
+
     if event_risk:
         reasons.append("A scheduled macro release is close enough to raise event risk.")
         evidence_state = "WAIT_EVENT"
+    elif macro_conflict:
+        evidence_state = "WAIT_MACRO_CONFLICT"
     elif confidence >= 0.75:
         evidence_state = "ALIGNED"
     else:
@@ -101,5 +134,6 @@ def assess_fx_decision_prep(
         confidence=confidence,
         valid_horizons=len(valid),
         event_risk=event_risk,
+        macro_alignment=normalized_macro,
         reasons=tuple(reasons),
     )
