@@ -8,7 +8,7 @@ Cakrawala brings market, macro, positioning, event, model, and risk evidence int
 
 The Streamlit app is the public portfolio and education surface. Personal research is intentionally kept out of its navigation.
 
-The private workflow is designed for a protected Vercel Preview plus application-level Google OIDC. Cakrawala does not rely on paid Vercel Private Production Deployments. Until preview protection and owner OIDC are verified, the Vercel environment must not be treated as a private store for personal data.
+The Vercel deployment is kept for personal use and is protected inside the application with a username and password. Its URL is not part of the public portfolio. The password itself is never stored in the repository or environment as plaintext. Vercel receives only a Werkzeug-compatible password hash plus a separate session secret.
 
 ## Why this project exists
 
@@ -36,26 +36,47 @@ Streamlit Community Cloud is retained because it is suitable for a public portfo
 
 ## Personal Vercel research surface
 
-The owner workflow uses Vercel for a different purpose. It is not the public portfolio homepage.
+The owner workflow uses Vercel for personal research. It is not the public portfolio homepage and its URL should not be published in the CV, README project links, LinkedIn post, or portfolio site.
 
-The zero-cost design is:
+The zero-cost application boundary is:
 
 ```text
 Vercel Hobby
    |
-   +-- protected Preview Deployment
-   |      Vercel Authentication
-   |
-   +-- Google OIDC inside the app
+   +-- application credential gate
           |
+          +-- username
+          +-- password hash
+          +-- secure server-side session policy
+          |
+          +-- Dash research terminal
           +-- /personal/ai-lab
           +-- /personal/forex
           +-- private storage only after provisioning
 ```
 
-Vercel Standard Protection can gate preview deployments on Hobby. The canonical production domain is not treated as private because full private production deployment protection is a paid feature. The personal preview must be tested anonymously in a private browser window before private data is enabled.
+The credential gate protects the Dash layout, callback endpoints, assets, private research routes, and root application. `/healthz` remains unauthenticated so deployment health can be checked without exposing research content.
 
-Application authorization is still required even behind deployment protection. Google OIDC uses the stable `sub` claim as the owner key rather than relying on an email match.
+The login form has CSRF protection, `no-store` caching, `noindex` headers, secure and HTTP-only session cookies, and an optional seven-day remembered session. Missing authentication configuration fails closed instead of exposing the application.
+
+Required Vercel environment variables are:
+
+```text
+PERSONAL_AUTH_USERNAME
+PERSONAL_AUTH_PASSWORD_HASH
+WEB_SESSION_SECRET
+PERSONAL_OWNER_ID
+```
+
+`PERSONAL_OWNER_ID` can be omitted and will fall back to the username. It exists as a stable storage key so changing a display username later does not have to change private database ownership.
+
+Generate the password hash locally and store only the resulting hash in Vercel. One example is:
+
+```bash
+python -c "from werkzeug.security import generate_password_hash; print(generate_password_hash(input('Password: ')))"
+```
+
+Use a long unique password. Never commit the password, its generated environment file, or the session secret.
 
 See `docs/private-public-split.md`.
 
@@ -99,7 +120,7 @@ Current research candidates include:
 | TradingAgents | Multi-agent research and debate patterns | Apache-2.0 | Architecture reference |
 | FinRL | Reinforcement-learning research | MIT | Sandbox candidate |
 | Microsoft Qlib | Reproducible quantitative research architecture | MIT | Architecture reference |
-| Amazon Chronos-Bolt Small | Probabilistic time-series forecasting | Apache-2.0 | Sandbox candidate |
+| Amazon Chronos-Bolt | Probabilistic time-series forecasting | Apache-2.0 | Sandbox candidate |
 | IBM Granite TinyTimeMixer R2.1 | Compact time-series forecasting | Apache-2.0 | Sandbox candidate |
 | ProsusAI FinBERT | Financial sentiment tagging | Verify before integration | Observe only |
 
@@ -107,7 +128,9 @@ The radar is stored in `configs/ai_research_radar.yaml` and is rechecked by sche
 
 Heavy models are deliberately kept out of the Vercel request path. They belong in scheduled GitHub Actions or a local research sandbox so the owner app stays responsive and no paid compute service becomes mandatory.
 
-See `docs/ai-trading-research.md`.
+The first Chronos-Bolt Tiny FX validation also failed its research gate against a simple last-value benchmark. It remains research-only. That result is documented rather than tuned away.
+
+See `docs/ai-trading-research.md` and `docs/fx-foundation-model.md`.
 
 ## Model promotion policy
 
@@ -153,11 +176,11 @@ See `docs/sources.md`.
 
 ```text
 app/streamlit_app.py            public Streamlit entrypoint
-app/dash_app.py                 Dash research application
+app/dash_app.py                 private Dash research application
 main.py                         native Vercel WSGI bridge
 src/cakrawala/data/             provider adapters, validation, provenance
 src/cakrawala/intelligence/     research, risk, models, decision-prep policy
-src/cakrawala/web/              public services and owner authorization routes
+src/cakrawala/web/              credential gate and owner research routes
 src/cakrawala/personal/         private storage access
 configs/                        source, signal, model, tool, and AI research policies
 data/ai_briefs/                 validated scheduled public AI brief
@@ -173,16 +196,16 @@ Public evidence may use bounded shared caching. Private owner rows never enter t
 Stored Personal Mode features remain fail-closed until real infrastructure is configured:
 
 ```text
-GOOGLE_OIDC_CLIENT_ID
-GOOGLE_OIDC_CLIENT_SECRET
-GOOGLE_OWNER_SUB
+PERSONAL_AUTH_USERNAME
+PERSONAL_AUTH_PASSWORD_HASH
 WEB_SESSION_SECRET
+PERSONAL_OWNER_ID
 DATABASE_PERSONAL_URL
 ```
 
 Private portfolio, trade plans, journal, and playbook records require a separate PostgreSQL connection and the personal migrations. No placeholder credential is committed to the repository.
 
-The Forex Desk and AI Decision Lab can be prepared before the private database exists because their source evidence is public. They still require owner authorization before being treated as personal routes.
+The Forex Desk and AI Decision Lab can operate before the private database exists because their source evidence is public. The whole Vercel application still requires the personal credential session.
 
 ## Automation
 
@@ -192,10 +215,11 @@ Cakrawala currently uses guardrailed scheduled workflows for:
 - daily public AI Research Council research;
 - weekly trading-framework, AI-model, and Hugging Face research;
 - recurring public source-health checks;
-- weekly model backtesting;
+- weekly BTC model backtesting;
+- weekly FX foundation-model backtesting;
 - external deployment and privacy health monitoring.
 
-The weekly research process now reviews TradingAgents, FinRL, Qlib, Chronos-Bolt, TinyTimeMixer, financial NLP models, and newly relevant tools. It verifies license, activity, model size or runtime burden where available, intended use, leakage risk, security risk, and free-runtime fit before updating the radar through a pull request.
+The weekly research process reviews TradingAgents, FinRL, Qlib, Chronos-Bolt, TinyTimeMixer, financial NLP models, and newly relevant tools. It verifies license, activity, model size or runtime burden where available, intended use, leakage risk, security risk, and free-runtime fit before updating the radar through a pull request.
 
 Automation cannot install a trading bot directly into production, connect a broker, expose credentials, enable withdrawals, purchase infrastructure, or promote a model automatically.
 
@@ -239,7 +263,7 @@ pip install -e '.[streamlit]'
 streamlit run app/streamlit_app.py
 ```
 
-Run Dash locally:
+Run Dash locally after setting the personal authentication environment variables:
 
 ```bash
 python app/dash_app.py
