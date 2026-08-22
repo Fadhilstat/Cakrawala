@@ -2,61 +2,56 @@ from __future__ import annotations
 
 import argparse
 import os
-import tomllib
-from pathlib import Path
-from typing import Any
 
-PERSONAL_REQUIREMENTS = (
-    ("auth.redirect_uri", "auth", "redirect_uri", "AUTH_REDIRECT_URI"),
-    ("auth.cookie_secret", "auth", "cookie_secret", "AUTH_COOKIE_SECRET"),
-    ("auth.client_id", "auth", "client_id", "AUTH_CLIENT_ID"),
-    ("auth.client_secret", "auth", "client_secret", "AUTH_CLIENT_SECRET"),
-    (
-        "auth.server_metadata_url",
-        "auth",
-        "server_metadata_url",
-        "AUTH_SERVER_METADATA_URL",
-    ),
-    ("cakrawala.owner_sub", "cakrawala", "owner_sub", "CAKRAWALA_OWNER_SUB"),
-    (
-        "cakrawala.database_personal_url",
-        "cakrawala",
-        "database_personal_url",
-        "DATABASE_PERSONAL_URL",
-    ),
+AUTH_REQUIREMENTS = (
+    "PERSONAL_AUTH_USERNAME",
+    "PERSONAL_AUTH_PASSWORD_HASH",
+    "WEB_SESSION_SECRET",
+    "PERSONAL_OWNER_ID",
 )
-OPTIONAL_PROVIDER_KEYS = ("BPS_API_KEY", "FRED_API_KEY")
+STORAGE_REQUIREMENTS = ("DATABASE_PERSONAL_URL",)
+MT5_REQUIREMENTS = ("PERSONAL_FOREX_INGEST_TOKEN",)
+EQUITY_REQUIREMENTS = ("TWELVE_DATA_API_KEY", "PERSONAL_EQUITY_WATCHLIST")
 
 
-def load_settings(path: Path) -> dict[str, Any]:
-    if not path.exists():
-        return {}
-    with path.open("rb") as handle:
-        data = tomllib.load(handle)
-    if not isinstance(data, dict):
-        raise ValueError("Streamlit secrets file must contain a TOML mapping")
-    return data
+def _status(name: str) -> bool:
+    configured = bool(os.environ.get(name, "").strip())
+    print(f"{name}: {'configured' if configured else 'missing'}")
+    return configured
 
 
-def configured(
-    settings: dict[str, Any],
-    section: str,
-    key: str,
-    environment_name: str,
-) -> bool:
-    if os.environ.get(environment_name):
-        return True
-    values = settings.get(section, {})
-    return isinstance(values, dict) and bool(values.get(key))
+def _check_group(title: str, names: tuple[str, ...], *, required: bool) -> bool:
+    print(f"\n{title}")
+    results = [_status(name) for name in names]
+    complete = all(results)
+    if complete:
+        print("status: ready")
+    elif required:
+        print("status: blocked")
+    else:
+        print("status: optional or incomplete")
+    return complete or not required
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Check server-side deployment readiness without printing secret values."
+    )
     parser.add_argument("--mode", choices=("public", "personal"), default="public")
     parser.add_argument(
-        "--secrets",
-        type=Path,
-        default=Path(".streamlit/secrets.toml"),
+        "--require-storage",
+        action="store_true",
+        help="Require the private PostgreSQL connection for this check.",
+    )
+    parser.add_argument(
+        "--require-mt5",
+        action="store_true",
+        help="Require the MT5 ingest token for this check.",
+    )
+    parser.add_argument(
+        "--require-equity",
+        action="store_true",
+        help="Require the private Twelve Data key and equity watchlist.",
     )
     args = parser.parse_args()
 
@@ -65,23 +60,25 @@ def main() -> int:
         print("Run scripts/check_sources.py from the target runtime before sharing the URL.")
         return 0
 
-    settings = load_settings(args.secrets)
-    missing: list[str] = []
-    for label, section, key, environment_name in PERSONAL_REQUIREMENTS:
-        is_configured = configured(settings, section, key, environment_name)
-        print(f"{label}: {'configured' if is_configured else 'missing'}")
-        if not is_configured:
-            missing.append(label)
+    ready = True
+    ready &= _check_group("Owner authentication", AUTH_REQUIREMENTS, required=True)
+    ready &= _check_group(
+        "Private PostgreSQL",
+        STORAGE_REQUIREMENTS,
+        required=args.require_storage,
+    )
+    ready &= _check_group("MT5 read-only sync", MT5_REQUIREMENTS, required=args.require_mt5)
+    ready &= _check_group(
+        "Private equity intelligence",
+        EQUITY_REQUIREMENTS,
+        required=args.require_equity,
+    )
 
-    for name in OPTIONAL_PROVIDER_KEYS:
-        value = "configured" if os.environ.get(name) else "optional or missing"
-        print(f"{name}: {value}")
-
-    if missing:
-        print("Personal Mode is not ready. Missing server-side settings remain.")
+    if not ready:
+        print("\nPersonal Mode preflight failed. Required server-side settings are missing.")
         return 1
 
-    print("Personal Mode server-side settings are configured. Values were not printed.")
+    print("\nPersonal Mode preflight passed. Secret values were not printed.")
     return 0
 
 
