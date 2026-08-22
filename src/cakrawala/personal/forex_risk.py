@@ -5,7 +5,11 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from zoneinfo import ZoneInfo
 
-from cakrawala.personal.forex_analytics import AccountSnapshot, ForexDeal, performance_summary
+from cakrawala.personal.forex_analytics import (
+    AccountSnapshot,
+    ForexDeal,
+    performance_summary,
+)
 from cakrawala.personal.forex_sync import PositionSnapshot
 
 
@@ -41,12 +45,22 @@ class ForexRiskAssessment:
 
 def policy_from_mapping(values: dict[str, object]) -> ForexRiskPolicy:
     return ForexRiskPolicy(
-        daily_closed_loss_limit_percent=float(values["daily_closed_loss_limit_percent"]),
-        floating_loss_limit_percent=float(values["floating_loss_limit_percent"]),
-        closed_deal_drawdown_limit_percent=float(values["closed_deal_drawdown_limit_percent"]),
-        minimum_margin_level_percent=float(values["minimum_margin_level_percent"]),
+        daily_closed_loss_limit_percent=float(
+            values["daily_closed_loss_limit_percent"]
+        ),
+        floating_loss_limit_percent=float(
+            values["floating_loss_limit_percent"]
+        ),
+        closed_deal_drawdown_limit_percent=float(
+            values["closed_deal_drawdown_limit_percent"]
+        ),
+        minimum_margin_level_percent=float(
+            values["minimum_margin_level_percent"]
+        ),
         maximum_open_positions=int(values["maximum_open_positions"]),
-        maximum_positions_without_stop=int(values["maximum_positions_without_stop"]),
+        maximum_positions_without_stop=int(
+            values["maximum_positions_without_stop"]
+        ),
         snapshot_stale_minutes=int(values["snapshot_stale_minutes"]),
     )
 
@@ -82,7 +96,9 @@ def assess_forex_risk(
             daily_closed_pnl_percent=None,
             floating_pnl_percent=None,
             closed_deal_drawdown_percent=None,
-            positions_without_stop=sum(item.stop_loss is None for item in positions),
+            positions_without_stop=sum(
+                item.stop_loss is None for item in positions
+            ),
             open_positions=len(positions),
             snapshot_age_minutes=None,
         )
@@ -101,7 +117,9 @@ def assess_forex_risk(
     floating_percent = snapshot.floating_pnl / snapshot.balance * 100
     drawdown = performance_summary(deals).max_drawdown
     drawdown_percent = drawdown / snapshot.balance * 100
-    positions_without_stop = sum(item.stop_loss is None for item in positions)
+    positions_without_stop = sum(
+        item.stop_loss is None for item in positions
+    )
 
     locked: list[str] = []
     caution: list[str] = []
