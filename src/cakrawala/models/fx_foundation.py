@@ -21,7 +21,6 @@ class ForecastMetrics:
     baseline_mae: float
     mae_improvement: float
     direction_accuracy: float
-    baseline_direction_accuracy: float
     interval_coverage: float
 
 
@@ -35,7 +34,6 @@ def evaluate_forecasts(points: list[ForecastPoint]) -> ForecastMetrics:
         (item.median - item.origin_value) * (item.actual - item.origin_value) > 0
         for item in points
     ]
-    baseline_direction = [item.actual == item.origin_value for item in points]
     coverage = [item.low <= item.actual <= item.high for item in points]
 
     model_mae = mean(absolute_errors)
@@ -50,7 +48,6 @@ def evaluate_forecasts(points: list[ForecastPoint]) -> ForecastMetrics:
         baseline_mae=baseline_mae,
         mae_improvement=improvement,
         direction_accuracy=mean(model_direction),
-        baseline_direction_accuracy=mean(baseline_direction),
         interval_coverage=mean(coverage),
     )
 
