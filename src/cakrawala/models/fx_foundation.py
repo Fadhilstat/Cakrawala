@@ -11,7 +11,7 @@ class ForecastPoint:
     median: float
     low: float
     high: float
-    previous: float
+    origin_value: float
 
 
 @dataclass(frozen=True)
@@ -30,12 +30,12 @@ def evaluate_forecasts(points: list[ForecastPoint]) -> ForecastMetrics:
         raise ValueError("forecast evaluation requires observations")
 
     absolute_errors = [abs(item.median - item.actual) for item in points]
-    baseline_errors = [abs(item.previous - item.actual) for item in points]
+    baseline_errors = [abs(item.origin_value - item.actual) for item in points]
     model_direction = [
-        (item.median - item.previous) * (item.actual - item.previous) > 0
+        (item.median - item.origin_value) * (item.actual - item.origin_value) > 0
         for item in points
     ]
-    baseline_direction = [item.actual == item.previous for item in points]
+    baseline_direction = [item.actual == item.origin_value for item in points]
     coverage = [item.low <= item.actual <= item.high for item in points]
 
     model_mae = mean(absolute_errors)
@@ -87,7 +87,7 @@ def evaluate_series(
         low, median, high = forecaster(context, horizon)
         if not (len(low) == len(median) == len(high) == horizon):
             raise ValueError("forecaster returned an invalid horizon")
-        previous = context[-1]
+        origin_value = context[-1]
         actuals = values[origin : origin + horizon]
         for actual, low_value, median_value, high_value in zip(
             actuals, low, median, high, strict=True
@@ -98,8 +98,7 @@ def evaluate_series(
                     median=float(median_value),
                     low=float(low_value),
                     high=float(high_value),
-                    previous=float(previous),
+                    origin_value=float(origin_value),
                 )
             )
-            previous = float(actual)
     return evaluate_forecasts(points)
