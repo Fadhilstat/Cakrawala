@@ -76,13 +76,23 @@ def test_daily_market_assessment_requires_enough_completed_history() -> None:
 def test_twelve_data_requires_server_side_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("TWELVE_DATA_API_KEY", raising=False)
     with pytest.raises(RuntimeError, match="TWELVE_DATA_API_KEY"):
-        twelve_data.fetch_daily_equity_history("BBCA", exchange="IDX")
+        twelve_data.fetch_daily_equity_history("BBCA", mic_code="XIDX")
 
 
 def test_twelve_data_rejects_unsafe_symbol(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("TWELVE_DATA_API_KEY", "secret")
     with pytest.raises(ValueError, match="symbol"):
-        twelve_data.fetch_daily_equity_history("BBCA&apikey=leak", exchange="IDX")
+        twelve_data.fetch_daily_equity_history("BBCA&apikey=leak", mic_code="XIDX")
+
+
+def test_twelve_data_rejects_ambiguous_venue(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TWELVE_DATA_API_KEY", "secret")
+    with pytest.raises(ValueError, match="either exchange or mic_code"):
+        twelve_data.fetch_daily_equity_history(
+            "AAPL",
+            exchange="NASDAQ",
+            mic_code="XNAS",
+        )
 
 
 def test_twelve_data_redacts_key_and_normalizes_history(
@@ -116,11 +126,12 @@ def test_twelve_data_redacts_key_and_normalizes_history(
         )
 
     monkeypatch.setattr(twelve_data, "get_json", fake_get_json)
-    result = twelve_data.fetch_daily_equity_history("bbca", exchange="idx", outputsize=60)
+    result = twelve_data.fetch_daily_equity_history("bbca", mic_code="xidx", outputsize=60)
     assert captured["sensitive_params"] == frozenset({"apikey"})
     assert "top-secret" not in result.provenance.source_url
     assert result.data["symbol"] == "BBCA"
-    assert result.data["exchange"] == "IDX"
+    assert result.data["mic_code"] == "XIDX"
+    assert result.data["exchange"] is None
     bars = result.data["bars"]
     assert len(bars) == 21
     assert bars[0].observed_at < bars[-1].observed_at
