@@ -117,7 +117,12 @@ def _equity_svg(deals: list[ForexDeal]) -> str:
     )
 
 
-def _load_private() -> tuple[AccountSnapshot | None, list[PositionSnapshot], list[ForexDeal], str]:
+def _load_private() -> tuple[
+    AccountSnapshot | None,
+    list[PositionSnapshot],
+    list[ForexDeal],
+    str,
+]:
     database_url = os.environ.get("DATABASE_PERSONAL_URL", "").strip()
     owner_sub = str(session.get("owner_id", "")).strip()
     if not database_url:
@@ -175,7 +180,12 @@ th, td {
   white-space: nowrap;
 }
 th { color: #aebdd1; }
-.warning { border: 1px solid #6c5835; padding: 12px 14px; border-radius: 10px; margin-top: 14px; }
+.warning {
+  border: 1px solid #6c5835;
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-top: 14px;
+}
 .chart { color: var(--green); }
 .chart svg { width: 100%; height: 180px; }
 .chart-note { color: var(--muted); font-size: 11px; margin-top: 8px; }
@@ -217,7 +227,10 @@ def _page(display_name: str) -> str:
             "<h1>Forex Review Workspace</h1>",
             f"<div class='muted'>Verified owner: {owner}</div></div>",
             "<div><a href='/personal/forex'>Command Center</a> | ",
-            "<a href='/personal/ai-lab'>AI Lab</a> | <a href='/logout'>Logout</a></div></div>",
+            "<a href='/personal/forex/risk'>Risk</a> | ",
+            "<a href='/personal/forex/system'>System & Setup</a> | ",
+            "<a href='/personal/ai-lab'>AI Lab</a> | ",
+            "<a href='/logout'>Logout</a></div></div>",
             warning,
             "<div class='grid'>",
             _metric("Account", account_label, captured_note),
