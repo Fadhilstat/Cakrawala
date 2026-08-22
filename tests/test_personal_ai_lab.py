@@ -1,5 +1,5 @@
-from flask import Flask
 import pytest
+from flask import Flask
 
 from cakrawala.web import personal_ai_lab
 from cakrawala.web.personal_ai_lab import install_personal_ai_lab_route
