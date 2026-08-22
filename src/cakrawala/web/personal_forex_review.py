@@ -168,7 +168,12 @@ h2 { font-size: 17px; margin: 0 0 14px; }
 .value { font-size: 22px; font-weight: 800; margin: 6px 0; }
 .table-wrap { overflow: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
-th, td { padding: 9px 7px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+th, td {
+  padding: 9px 7px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+}
 th { color: #aebdd1; }
 .warning { border: 1px solid #6c5835; padding: 12px 14px; border-radius: 10px; margin-top: 14px; }
 .chart { color: var(--green); }
