@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 _ALLOWED_MACRO_ALIGNMENTS = {
     "SUPPORTS_UP",
     "SUPPORTS_DOWN",
