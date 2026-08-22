@@ -4,9 +4,9 @@ Personal Forex Desk is an owner-only research workspace for daily G10 foreign-ex
 
 ## Access boundary
 
-The Dash deployment exposes the desk at `/personal/forex` only after Google OIDC verifies the configured owner subject. Authorization is checked from the server-side session. The route does not depend on the public cache and does not expose the private portfolio, journal, trade plans, or playbook.
+The Vercel Dash deployment exposes the desk at `/personal/forex` only after the application credential gate verifies a valid personal session. Authorization is checked from the server-side session. The route does not depend on the public cache and does not expose the private portfolio, journal, trade plans, or playbook unless their separate storage is configured.
 
-If OIDC is not provisioned, Personal Mode stays fail-closed. No fallback identity, email-only authorization, or public bypass is provided.
+The login uses a username plus a one-way password hash stored in Vercel environment variables. The plaintext password is not stored in the repository or deployment configuration. If the credential configuration is incomplete, the personal Vercel application fails closed. No fallback identity or public bypass is provided.
 
 ## Market evidence
 
