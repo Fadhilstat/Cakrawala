@@ -116,7 +116,8 @@ def install_owner_auth(server: Flask) -> WebAuthConfig | None:
 
     @server.before_request
     def protect_personal_vercel() -> Any:
-        if request.path == "/healthz" or request.path == "/login":
+        public_paths = {"/healthz", "/login", "/personal/forex/sync"}
+        if request.path in public_paths:
             return None
         if config is None:
             return Response(
