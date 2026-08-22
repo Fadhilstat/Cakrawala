@@ -29,6 +29,23 @@ For each pair the artifact records:
 
 The research gate requires positive MAE improvement for every configured pair and at least 50 percent average direction accuracy. Passing this gate only means the candidate deserves more research. It does not change `configs/models.yaml`, does not populate a production role, and does not enable BUY, SELL, LONG, SHORT, or broker execution.
 
+## First verified run
+
+The first accepted workflow run completed on 22 August 2026 using ECB observations through 21 August 2026. Each pair contributed eight point-in-time forecast origins with a five-observation horizon, giving 40 evaluated forecasts per pair.
+
+| Pair | Model MAE | Last-value MAE | MAE improvement | Direction accuracy | 80% interval coverage |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| EURUSD | 0.008159 | 0.007388 | -10.44% | 45.0% | 82.5% |
+| GBPUSD | 0.009019 | 0.007455 | -20.98% | 32.5% | 80.0% |
+| USDJPY | 1.110472 | 1.035461 | -7.24% | 45.0% | 87.5% |
+| USDCHF | 0.005372 | 0.005349 | -0.43% | 60.0% | 77.5% |
+| AUDUSD | 0.005489 | 0.004976 | -10.31% | 67.5% | 75.0% |
+| USDCAD | 0.006681 | 0.006225 | -7.32% | 37.5% | 82.5% |
+
+Chronos-Bolt Tiny did not beat the last-value MAE benchmark on any configured pair. Average directional accuracy was about 47.9 percent. The research gate therefore failed and the model remains research-only.
+
+This result is intentionally kept as evidence rather than tuned away. Repeatedly changing the model, horizon, pair set, or threshold against the same evaluation window would weaken the value of the backtest. Any next experiment should be defined before a new untouched evaluation window is used and should include stronger statistical baselines alongside the simple last-value reference.
+
 ## Why the baseline stays simple
 
 A complicated benchmark can hide whether the foundation model adds real value. The last-value forecast is deliberately hard to misunderstand and difficult to contaminate with future information. A later phase may add stronger statistical baselines, but those should be reported alongside the simple benchmark rather than replacing it.
