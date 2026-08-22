@@ -1,13 +1,22 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from statistics import mean
 
 from cakrawala.personal.forex_analytics import ForexDeal
 
-WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+WEEKDAYS = (
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+)
 
 
 @dataclass(frozen=True)
@@ -100,12 +109,11 @@ def review_summary(deals: list[ForexDeal]) -> ReviewSummary:
 
 def _group_performance(
     deals: list[ForexDeal],
-    key_fn: object,
+    key_fn: Callable[[ForexDeal], str],
 ) -> list[GroupPerformance]:
     grouped: dict[str, list[float]] = defaultdict(list)
     for deal in _closed(deals):
-        label = str(key_fn(deal))  # type: ignore[operator]
-        grouped[label].append(deal.net_pnl)
+        grouped[key_fn(deal)].append(deal.net_pnl)
 
     rows: list[GroupPerformance] = []
     for label, pnls in grouped.items():
@@ -131,20 +139,22 @@ def performance_by_symbol(deals: list[ForexDeal]) -> list[GroupPerformance]:
 
 
 def performance_by_weekday(deals: list[ForexDeal]) -> list[GroupPerformance]:
-    rows = _group_performance(
-        deals,
-        lambda deal: WEEKDAYS[deal.closed_at.weekday()],
-    )
+    def weekday(deal: ForexDeal) -> str:
+        assert deal.closed_at is not None
+        return WEEKDAYS[deal.closed_at.weekday()]
+
+    rows = _group_performance(deals, weekday)
     order = {name: index for index, name in enumerate(WEEKDAYS)}
     return sorted(rows, key=lambda item: order.get(item.label, 99))
 
 
 def performance_by_hour_utc(deals: list[ForexDeal]) -> list[GroupPerformance]:
+    def hour(deal: ForexDeal) -> str:
+        assert deal.closed_at is not None
+        return f"{deal.closed_at.hour:02d}:00"
+
     return sorted(
-        _group_performance(
-            deals,
-            lambda deal: f"{deal.closed_at.hour:02d}:00",
-        ),
+        _group_performance(deals, hour),
         key=lambda item: item.label,
     )
 
