@@ -129,7 +129,7 @@ def latest_position_snapshots(
     query = f"""
         WITH latest AS (
             SELECT MAX(captured_at) AS captured_at
-            FROM forex_position_snapshots
+            FROM forex_sync_batches
             WHERE owner_sub = %s{account_filter}
         )
         SELECT ticket, account_name, symbol, side, volume, entry_price,
