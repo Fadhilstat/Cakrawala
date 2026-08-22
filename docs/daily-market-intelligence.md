@@ -38,14 +38,17 @@ Environment variables:
 
 ```text
 TWELVE_DATA_API_KEY=<server-side secret>
-PERSONAL_EQUITY_WATCHLIST=BBCA:IDX,AAPL:NASDAQ
+PERSONAL_EQUITY_WATCHLIST=BBCA@XIDX,AAPL@XNAS
 ```
+
+The watchlist uses the ISO 10383 market identifier code after `@` when a venue is needed. Twelve Data currently exposes a dedicated Indonesia Stock Exchange page under MIC `XIDX`, which was rechecked on 22 August 2026. Actual symbol and subscription availability must still be validated by the provider at request time.
 
 The adapter:
 
 - accepts daily history only for this workflow;
 - caps requested history;
-- validates symbol and exchange identifiers;
+- validates symbol, exchange, and MIC identifiers;
+- prevents ambiguous requests that send both an exchange and MIC code;
 - uses HTTPS and an exact provider host allowlist;
 - applies bounded timeout, retry, response-size, and content-type controls through the shared HTTP layer;
 - validates response schema and OHLC consistency;
@@ -58,6 +61,7 @@ Twelve Data documentation confirms that individual plans are intended for person
 Confirmed references checked on 22 August 2026:
 
 - `https://twelvedata.com/docs`
+- `https://twelvedata.com/exchanges/XIDX`
 - `https://support.twelvedata.com/en/articles/5332349-commercial-and-personal-usage`
 - `https://twelvedata.com/terms`
 
