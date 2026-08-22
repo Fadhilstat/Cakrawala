@@ -5,11 +5,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from cakrawala.personal.forex_analytics import AccountSnapshot, ForexDeal
-from cakrawala.personal.forex_risk import (
-    ForexRiskPolicy,
-    ForexRiskState,
-    assess_forex_risk,
-)
+from cakrawala.personal.forex_risk import ForexRiskPolicy, ForexRiskState, assess_forex_risk
 from cakrawala.personal.forex_sync import PositionSnapshot
 
 
