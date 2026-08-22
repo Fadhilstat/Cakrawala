@@ -6,6 +6,7 @@ import pytest
 from flask import Flask
 from werkzeug.security import generate_password_hash
 
+from cakrawala import __version__
 from cakrawala.web.auth import install_owner_auth
 
 
@@ -45,10 +46,27 @@ def test_unauthenticated_requests_are_redirected(protected_app: Flask) -> None:
     root = client.get("/", base_url="https://localhost")
     assert root.status_code == 302
     assert root.headers["Location"].endswith("/login")
+    assert root.headers["Cache-Control"] == "no-store"
+    assert root.headers["X-Robots-Tag"] == "noindex, nofollow"
+    assert root.headers["X-Frame-Options"] == "DENY"
+    assert root.headers["Referrer-Policy"] == "no-referrer"
 
     health = client.get("/healthz", base_url="https://localhost")
     assert health.status_code == 200
     assert health.get_json() == {"status": "ok"}
+    assert "X-Robots-Tag" not in health.headers
+
+
+def test_release_fingerprint_is_public_and_safe(protected_app: Flask) -> None:
+    response = protected_app.test_client().get("/releasez", base_url="https://localhost")
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "service": "cakrawala-personal",
+        "status": "ok",
+        "version": __version__,
+    }
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.headers["X-Robots-Tag"] == "noindex, nofollow"
 
 
 def test_login_requires_csrf_and_valid_credentials(protected_app: Flask) -> None:
@@ -57,7 +75,9 @@ def test_login_requires_csrf_and_valid_credentials(protected_app: Flask) -> None
     assert login_page.status_code == 200
     assert login_page.headers["Cache-Control"] == "no-store"
     assert login_page.headers["X-Robots-Tag"] == "noindex, nofollow"
+    assert "default-src 'none'" in login_page.headers["Content-Security-Policy"]
     token = _csrf_token(login_page.get_data(as_text=True))
+    assert token
 
     missing_csrf = client.post(
         "/login",
@@ -101,11 +121,30 @@ def test_valid_login_opens_private_application(protected_app: Flask) -> None:
     root = client.get("/", base_url="https://localhost")
     assert root.status_code == 200
     assert root.get_data(as_text=True) == "private root"
+    assert root.headers["Cache-Control"] == "no-store"
+    assert root.headers["Permissions-Policy"] == (
+        "camera=(), microphone=(), geolocation=(), payment=()"
+    )
 
     with client.session_transaction() as owner_session:
         assert owner_session["owner_verified"] is True
         assert owner_session["owner_id"] == "owner-local"
         assert owner_session.permanent is True
+
+
+def test_logout_clears_owner_session(protected_app: Flask) -> None:
+    client = protected_app.test_client()
+    with client.session_transaction() as owner_session:
+        owner_session["owner_verified"] = True
+        owner_session["owner_id"] = "owner-local"
+
+    response = client.get("/logout", base_url="https://localhost")
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/login")
+
+    root = client.get("/", base_url="https://localhost")
+    assert root.status_code == 302
+    assert root.headers["Location"].endswith("/login")
 
 
 def test_missing_auth_configuration_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -128,3 +167,4 @@ def test_missing_auth_configuration_fails_closed(monkeypatch: pytest.MonkeyPatch
     response = client.get("/", base_url="https://localhost")
     assert response.status_code == 503
     assert "not configured" in response.get_data(as_text=True)
+    assert response.headers["Cache-Control"] == "no-store"
