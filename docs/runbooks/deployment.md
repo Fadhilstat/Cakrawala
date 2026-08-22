@@ -1,70 +1,148 @@
 # Deployment Runbook
 
-## Verified target stack
+## Current deployment split
 
-The portfolio launch path was rechecked on 21 August 2026.
+Cakrawala uses two separate runtime surfaces.
 
-- GitHub remains the source of truth for code and deployment history.
-- Streamlit Community Cloud remains a free deployment option for Streamlit apps connected to GitHub.
-- Neon still offers a Free Plan suitable for a small owner-only PostgreSQL workload when its current limits fit the project.
-- Streamlit supports native OpenID Connect authentication, including Google, through `st.login`, `st.user`, and `st.logout`.
+- Public Mode runs on Streamlit Community Cloud and exposes only portfolio-safe evidence and research views.
+- Personal Mode runs as a separate Flask application on Vercel and is protected by the owner credential gate.
 
-Free-tier policies can change. Recheck them before a later migration or scale-up decision.
+This split is intentional. Public Mode must not depend on private credentials, private PostgreSQL, MT5 data, or Personal Mode navigation.
 
-## Stage 1: public launch
+Free-tier policies and provider terms can change. Recheck them before a later migration or scale-up decision.
 
-Public Mode does not need database or identity credentials. It reads approved public evidence directly
-through the secure provider boundary and fails visibly if a provider is unavailable.
+## Stage 1: public Streamlit
 
-1. Open Streamlit Community Cloud and connect the GitHub repository.
-2. Select `main` and `app/streamlit_app.py` as the entrypoint.
-3. Select Python 3.12.
-4. Do not add secrets just to make Public Mode work.
-5. Run `python scripts/preflight_deployment.py --mode public` in a matching environment.
-6. Run `python scripts/check_sources.py` from the target environment.
-7. Open the deployed URL anonymously and verify BMKG, World Bank, and public market panels.
-8. Confirm provider failures display a warning instead of synthetic fallback data.
-9. Check the deployment logs before sharing the URL.
+Public Mode should open without private credentials.
 
-The root `requirements.txt` installs the local project with `-e .`, so imports from `src/cakrawala`
-are available to the Streamlit entrypoint.
+1. Deploy `main` with `app/streamlit_app.py` as the entrypoint.
+2. Use the supported Python version from the repository configuration.
+3. Run `python scripts/preflight_deployment.py --mode public` in a matching environment.
+4. Run `python scripts/check_sources.py` from the target environment.
+5. Open every public workspace in a real browser.
+6. Confirm source attribution and freshness are visible where required.
+7. Confirm provider failures stay visible and are never replaced with synthetic evidence.
+8. Confirm no owner portfolio, journal, playbook, Forex Desk, AI Decision Lab, database identifier, or private route is exposed.
+9. Review runtime logs before publishing the URL.
 
-## Stage 2: owner-only Personal Mode
+## Stage 2: Personal Vercel authentication
 
-Personal Mode should be enabled only after the public launch is healthy.
+The Vercel application uses a server-side Flask session and password hash. Configure these values only in Vercel environment variables:
 
-1. Create a Google web application for OIDC.
-2. Copy `.streamlit/secrets.toml.example` to a private local file or enter equivalent values in the Streamlit secret store.
-3. Set the deployed callback to `<streamlit-app-url>/oauth2callback` in both Google and Streamlit settings.
-4. Store a strong random cookie secret, Google client ID, and Google client secret only in the secret store.
-5. Record the stable Google `sub` value for the owner and store it as `cakrawala.owner_sub`.
-6. Provision a private PostgreSQL database and apply `migrations/personal/001_init.sql` with a dedicated migration credential.
-7. Create a runtime database role with only the minimum permissions needed by Personal Mode.
-8. Store that runtime connection string as `cakrawala.database_personal_url`.
-9. Run `python scripts/preflight_deployment.py --mode personal` without printing secret values.
-10. Verify the owner can log in and read only the owner ledger.
-11. Verify a different authenticated Google account is denied.
-12. Verify the ledger remains unavailable if the private database is missing or unreachable.
+```text
+PERSONAL_AUTH_USERNAME=<owner login name>
+PERSONAL_AUTH_PASSWORD_HASH=<Werkzeug password hash>
+WEB_SESSION_SECRET=<strong random secret>
+PERSONAL_OWNER_ID=<stable private owner identifier>
+```
 
-Private portfolio reads are not stored in `st.cache_data`. Public and private data do not share a
-credential or cache path.
+Run:
 
-## Credentialed data sources
+```text
+python scripts/preflight_deployment.py --mode personal
+```
 
-BPS and FRED remain optional for the first public launch because both require API keys. When enabled,
-keep `BPS_API_KEY` and `FRED_API_KEY` server-side. FRED query credentials are redacted before source
-URLs are written to provenance metadata.
+The preflight reports only `configured` or `missing`. It never prints secret values.
 
-## Final smoke test
+After deployment, verify anonymously that private routes redirect to `/login`. Then verify owner login, logout, CSRF handling, secure session cookies, remembered-session behavior, `Cache-Control: no-store`, `X-Robots-Tag: noindex, nofollow`, frame protection, and fail-closed behavior when auth configuration is missing.
 
-Before adding a live URL to the CV or portfolio site, verify all of the following in the deployed
-runtime:
+Private routes currently include:
 
-- Public Mode opens without authentication.
-- Public source attribution is visible where required.
-- A failed provider does not create synthetic evidence.
-- Personal Mode cannot be opened by a non-owner identity.
-- No database URL, client secret, API key, cookie secret, or owner identifier appears in the browser, logs, or repository.
-- Restarting or redeploying does not weaken the owner authorization boundary.
+```text
+/personal/forex
+/personal/forex/review
+/personal/forex/risk
+/personal/forex/system
+/personal/market
+/personal/ai-lab
+```
 
-A live URL is not considered complete until these checks pass on the deployed instance.
+The MT5 sync endpoint is a separate machine-to-machine path and does not use the browser session.
+
+## Stage 3: private PostgreSQL
+
+Provision PostgreSQL only on a genuinely suitable free plan. Do not enable paid resources just to complete the portfolio MVP.
+
+Set only on the private runtime or migration environment:
+
+```text
+DATABASE_PERSONAL_URL=<private PostgreSQL URL>
+```
+
+Remote database connections must use TLS. The migration helper rejects explicit remote `sslmode=disable` and adds `sslmode=require` when a remote URL does not specify a mode.
+
+Before applying SQL, inspect the plan:
+
+```text
+python scripts/manage_personal_db.py --check
+```
+
+Then apply the versioned migration set explicitly:
+
+```text
+python scripts/manage_personal_db.py --apply
+```
+
+Run the check again and confirm every version is `APPLIED`.
+
+For a release where persistent Personal Mode data is required, use:
+
+```text
+python scripts/preflight_deployment.py --mode personal --require-storage
+```
+
+Use a least-privilege runtime database role where the provider supports it. Migration credentials and runtime credentials should be separate when practical.
+
+## Stage 4: MT5 read-only sync
+
+Configure the ingest token server-side:
+
+```text
+PERSONAL_FOREX_INGEST_TOKEN=<strong random token>
+```
+
+Require it in preflight with:
+
+```text
+python scripts/preflight_deployment.py --mode personal --require-storage --require-mt5
+```
+
+The local MT5 collector must remain read-only. It may read account information, positions, and deal history, normalize the records, and send them to the protected HTTPS sync endpoint. It must not call broker order placement methods.
+
+After the first real sync, verify duplicate handling, position freshness, fees, commission, swap, realized and floating P/L, drawdown semantics, stop-loss coverage, margin level, and risk-state behavior against the source account.
+
+## Stage 5: optional private equity intelligence
+
+Twelve Data is restricted to Personal Mode for the current individual-use workflow.
+
+Configure only on the private runtime:
+
+```text
+TWELVE_DATA_API_KEY=<private key>
+PERSONAL_EQUITY_WATCHLIST=BBCA@XIDX,AAPL@XNAS
+```
+
+Require both settings with:
+
+```text
+python scripts/preflight_deployment.py --mode personal --require-equity
+```
+
+Use `@MIC` when venue disambiguation is needed. Validate each actual symbol and subscription entitlement at request time. Do not publish raw Twelve Data market data in the public Streamlit surface or public repository artifacts.
+
+## Final production gate
+
+A release is not considered complete until the deployed instances pass these checks:
+
+- Public Mode opens without authentication and exposes no Personal Mode navigation.
+- Every private browser route rejects or redirects anonymous access.
+- Owner login and logout work in the deployed runtime.
+- Security headers and secure cookie behavior match the application configuration.
+- PostgreSQL migrations are fully applied when persistent private features are enabled.
+- MT5 sync remains read-only and owner-scoped.
+- Twelve Data credentials and licensed raw rows remain private.
+- Source failures are visible and never replaced by invented data.
+- No database URL, password hash, session secret, API key, ingest token, or owner identifier appears in browser output, repository content, or logs.
+- Runtime logs show no unexplained application errors after the complete browser walkthrough.
+
+Only after these checks pass should the final production links and screenshots be used in the CV, LinkedIn, or public portfolio.
