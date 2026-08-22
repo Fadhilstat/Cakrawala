@@ -4,6 +4,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from math import isfinite
 from typing import Any
 
 from cakrawala.personal.forex_analytics import AccountSnapshot, ForexDeal
@@ -65,12 +66,19 @@ def _number(value: Any, field: str, *, positive: bool = False) -> float:
         number = float(value)
     except (TypeError, ValueError) as exc:
         raise ValueError(f"{field} must be numeric") from exc
+    if not isfinite(number):
+        raise ValueError(f"{field} must be finite")
     if positive and number <= 0:
         raise ValueError(f"{field} must be positive")
     return number
 
 
-def _optional_number(value: Any, field: str, *, positive: bool = False) -> float | None:
+def _optional_number(
+    value: Any,
+    field: str,
+    *,
+    positive: bool = False,
+) -> float | None:
     if value is None or value == "":
         return None
     return _number(value, field, positive=positive)
@@ -84,7 +92,12 @@ def _side(value: Any, field: str = "side") -> str:
 
 
 def canonical_payload_hash(payload: dict[str, Any]) -> str:
-    serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    serialized = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    )
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
@@ -95,7 +108,11 @@ def parse_sync_payload(payload: Any) -> ForexSyncPayload:
     account_raw = payload.get("account")
     positions_raw = payload.get("positions", [])
     deals_raw = payload.get("deals", [])
-    source = _text(payload.get("source", "manual_or_bridge"), "source", max_length=60)
+    source = _text(
+        payload.get("source", "manual_or_bridge"),
+        "source",
+        max_length=60,
+    )
     captured_at = _timestamp(payload.get("captured_at"), "captured_at")
 
     if not isinstance(account_raw, dict):
@@ -110,7 +127,10 @@ def parse_sync_payload(payload: Any) -> ForexSyncPayload:
         account_name=account_name,
         balance=_number(account_raw.get("balance"), "account.balance"),
         equity=_number(account_raw.get("equity"), "account.equity"),
-        floating_pnl=_number(account_raw.get("floating_pnl"), "account.floating_pnl"),
+        floating_pnl=_number(
+            account_raw.get("floating_pnl"),
+            "account.floating_pnl",
+        ),
         margin_level_percent=_optional_number(
             account_raw.get("margin_level_percent"),
             "account.margin_level_percent",
@@ -135,9 +155,16 @@ def parse_sync_payload(payload: Any) -> ForexSyncPayload:
             PositionSnapshot(
                 ticket=ticket,
                 account_name=account_name,
-                symbol=_text(raw.get("symbol"), f"positions[{index}].symbol").upper(),
+                symbol=_text(
+                    raw.get("symbol"),
+                    f"positions[{index}].symbol",
+                ).upper(),
                 side=_side(raw.get("side"), f"positions[{index}].side"),
-                volume=_number(raw.get("volume"), f"positions[{index}].volume", positive=True),
+                volume=_number(
+                    raw.get("volume"),
+                    f"positions[{index}].volume",
+                    positive=True,
+                ),
                 entry_price=_number(
                     raw.get("entry_price"),
                     f"positions[{index}].entry_price",
@@ -178,7 +205,10 @@ def parse_sync_payload(payload: Any) -> ForexSyncPayload:
         if ticket in deal_keys:
             raise ValueError("duplicate deal ticket in payload")
         deal_keys.add(ticket)
-        opened_at = _timestamp(raw.get("opened_at"), f"deals[{index}].opened_at")
+        opened_at = _timestamp(
+            raw.get("opened_at"),
+            f"deals[{index}].opened_at",
+        )
         closed_at_raw = raw.get("closed_at")
         closed_at = (
             _timestamp(closed_at_raw, f"deals[{index}].closed_at")
@@ -191,9 +221,16 @@ def parse_sync_payload(payload: Any) -> ForexSyncPayload:
             ForexDeal(
                 ticket=ticket,
                 account_name=account_name,
-                symbol=_text(raw.get("symbol"), f"deals[{index}].symbol").upper(),
+                symbol=_text(
+                    raw.get("symbol"),
+                    f"deals[{index}].symbol",
+                ).upper(),
                 side=_side(raw.get("side"), f"deals[{index}].side"),
-                volume=_number(raw.get("volume"), f"deals[{index}].volume", positive=True),
+                volume=_number(
+                    raw.get("volume"),
+                    f"deals[{index}].volume",
+                    positive=True,
+                ),
                 entry_price=_number(
                     raw.get("entry_price"),
                     f"deals[{index}].entry_price",
@@ -206,10 +243,26 @@ def parse_sync_payload(payload: Any) -> ForexSyncPayload:
                 ),
                 opened_at=opened_at,
                 closed_at=closed_at,
-                realized_pnl=_number(raw.get("realized_pnl", 0), f"deals[{index}].realized_pnl"),
-                commission=_number(raw.get("commission", 0), f"deals[{index}].commission"),
-                swap=_number(raw.get("swap", 0), f"deals[{index}].swap"),
-                result_r=_optional_number(raw.get("result_r"), f"deals[{index}].result_r"),
+                realized_pnl=_number(
+                    raw.get("realized_pnl", 0),
+                    f"deals[{index}].realized_pnl",
+                ),
+                commission=_number(
+                    raw.get("commission", 0),
+                    f"deals[{index}].commission",
+                ),
+                swap=_number(
+                    raw.get("swap", 0),
+                    f"deals[{index}].swap",
+                ),
+                fee=_number(
+                    raw.get("fee", 0),
+                    f"deals[{index}].fee",
+                ),
+                result_r=_optional_number(
+                    raw.get("result_r"),
+                    f"deals[{index}].result_r",
+                ),
             )
         )
 
