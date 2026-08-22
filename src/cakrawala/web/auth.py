@@ -177,8 +177,10 @@ def install_owner_auth(server: Flask) -> WebAuthConfig | None:
 
 
 def owner_session_state() -> dict[str, Any]:
+    owner_id = str(session.get("owner_id", ""))
     return {
         "verified": bool(session.get("owner_verified", False)),
-        "owner_id": str(session.get("owner_id", "")),
+        "owner_id": owner_id,
+        "sub": owner_id,
         "display_name": str(session.get("display_name", "")),
     }
