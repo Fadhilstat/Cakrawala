@@ -57,12 +57,15 @@ A production deployment performs these checks before it is accepted:
 1. the repository no-em-dash check passes;
 2. package and project release versions match;
 3. Vercel CLI deploys the exact checked-out `main` revision to production;
-4. `/healthz` responds successfully;
-5. `/releasez` returns the expected Cakrawala Personal Mode version;
-6. release and login responses include the expected private-response security headers;
-7. anonymous private routes either redirect to `/login` or fail closed with HTTP 503 when authentication has not been configured.
+4. the authenticated Vercel CLI waits until the exact deployment reaches a ready state;
+5. the canonical production `/healthz` endpoint responds successfully;
+6. the canonical `/releasez` endpoint returns the expected Cakrawala Personal Mode version;
+7. release and login responses include the expected private-response security headers;
+8. anonymous private routes either redirect to `/login` or fail closed with HTTP 503 when authentication has not been configured.
 
-The same verification can be run manually without credentials:
+The exact deployment URL can be protected by Vercel deployment protection. The workflow therefore uses the authenticated Vercel CLI to validate deployment readiness and uses the canonical production URL for application-level HTTP verification. This avoids treating a protected deployment URL as an application failure.
+
+The same application verification can be run manually without credentials:
 
 ```text
 python scripts/verify_personal_release.py \
