@@ -13,6 +13,7 @@ from werkzeug.security import check_password_hash
 
 from cakrawala.web.personal_ai_lab import install_personal_ai_lab_route
 from cakrawala.web.personal_forex import install_personal_forex_route
+from cakrawala.web.personal_forex_sync import install_personal_forex_sync_route
 
 
 @dataclass(frozen=True)
@@ -172,6 +173,7 @@ def install_owner_auth(server: Flask) -> WebAuthConfig | None:
         session.clear()
         return redirect("/login")
 
+    install_personal_forex_sync_route(server)
     install_personal_forex_route(server)
     install_personal_ai_lab_route(server)
     return config
