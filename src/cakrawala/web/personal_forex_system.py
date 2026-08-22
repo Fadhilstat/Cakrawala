@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from html import escape
-from typing import Any, Callable
+from typing import Any
 
 from flask import Flask, Response, redirect, session
 
@@ -68,31 +69,57 @@ def _private_checks() -> list[SystemCheck]:
     ingest_token = os.environ.get("PERSONAL_FOREX_INGEST_TOKEN", "").strip()
     owner_id = os.environ.get("PERSONAL_OWNER_ID", "").strip()
 
+    auth_detail = (
+        "server-side credential gate"
+        if auth_ready
+        else "required environment values missing"
+    )
+    database_detail = (
+        "configured"
+        if database_url
+        else "DATABASE_PERSONAL_URL is not configured"
+    )
+    ingest_detail = (
+        "configured, value hidden"
+        if ingest_token
+        else "PERSONAL_FOREX_INGEST_TOKEN is missing"
+    )
+    owner_detail = (
+        "configured"
+        if owner_id
+        else "authentication username fallback is active"
+    )
     checks = [
         SystemCheck(
             "Owner authentication",
             "READY" if auth_ready else "MISSING",
-            "server-side credential gate" if auth_ready else "required environment values missing",
+            auth_detail,
         ),
         SystemCheck(
             "Private database",
             "READY" if database_url else "MISSING",
-            "configured" if database_url else "DATABASE_PERSONAL_URL is not configured",
+            database_detail,
         ),
         SystemCheck(
             "MT5 ingest token",
             "READY" if ingest_token else "MISSING",
-            "configured, value hidden" if ingest_token else "PERSONAL_FOREX_INGEST_TOKEN is missing",
+            ingest_detail,
         ),
         SystemCheck(
             "Stable owner ID",
             "READY" if owner_id else "FALLBACK",
-            "configured" if owner_id else "authentication username fallback is active",
+            owner_detail,
         ),
     ]
 
     if not database_url:
-        checks.append(SystemCheck("Latest private snapshot", "UNAVAILABLE", "database not configured"))
+        checks.append(
+            SystemCheck(
+                "Latest private snapshot",
+                "UNAVAILABLE",
+                "database not configured",
+            )
+        )
         return checks
 
     try:
@@ -101,7 +128,13 @@ def _private_checks() -> list[SystemCheck]:
         owner_sub = str(session.get("owner_id", "")).strip()
         snapshot = latest_account_snapshot(database_url, owner_sub)
         if snapshot is None:
-            checks.append(SystemCheck("Latest private snapshot", "EMPTY", "no snapshot ingested yet"))
+            checks.append(
+                SystemCheck(
+                    "Latest private snapshot",
+                    "EMPTY",
+                    "no snapshot ingested yet",
+                )
+            )
         else:
             age = datetime.now(UTC) - snapshot.captured_at.astimezone(UTC)
             minutes = max(age.total_seconds(), 0) / 60
@@ -113,7 +146,13 @@ def _private_checks() -> list[SystemCheck]:
                 )
             )
     except Exception as exc:
-        checks.append(SystemCheck("Latest private snapshot", "DEGRADED", type(exc).__name__))
+        checks.append(
+            SystemCheck(
+                "Latest private snapshot",
+                "DEGRADED",
+                type(exc).__name__,
+            )
+        )
     return checks
 
 
@@ -126,12 +165,14 @@ def _status_class(status: str) -> str:
 
 
 def _checks_table(checks: list[SystemCheck]) -> str:
-    rows = []
+    rows: list[str] = []
     for item in checks:
+        status_class = _status_class(item.status)
         rows.append(
             "<tr>"
             f"<td>{escape(item.name)}</td>"
-            f"<td><span class='status {_status_class(item.status)}'>{escape(item.status)}</span></td>"
+            f"<td><span class='status {status_class}'>"
+            f"{escape(item.status)}</span></td>"
             f"<td>{escape(item.detail)}</td>"
             "</tr>"
         )
@@ -144,6 +185,16 @@ def _checks_table(checks: list[SystemCheck]) -> str:
     )
 
 
+def _policy_rows(values: dict[str, object]) -> str:
+    return "".join(
+        "<tr>"
+        f"<td>{escape(str(key).replace('_', ' ').title())}</td>"
+        f"<td>{escape(str(value))}</td>"
+        "</tr>"
+        for key, value in values.items()
+    )
+
+
 def _setup_content() -> str:
     config = load_yaml("configs/personal_forex.yaml")
     pairs = [str(value) for value in config.get("pairs", [])]
@@ -151,41 +202,31 @@ def _setup_content() -> str:
     integration = dict(config.get("integration", {}))
     workspace = dict(config.get("workspace", {}))
 
-    pair_html = "".join(f"<span class='pair'>{escape(pair)}</span>" for pair in pairs)
-    policy_rows = "".join(
-        f"<tr><td>{escape(str(key).replace('_', ' ').title())}</td>"
-        f"<td>{escape(str(value))}</td></tr>"
-        for key, value in risk.items()
-    )
-    integration_rows = "".join(
-        f"<tr><td>{escape(str(key).replace('_', ' ').title())}</td>"
-        f"<td>{escape(str(value))}</td></tr>"
-        for key, value in integration.items()
-    )
-    workspace_rows = "".join(
-        f"<tr><td>{escape(str(key).replace('_', ' ').title())}</td>"
-        f"<td>{escape(str(value))}</td></tr>"
-        for key, value in workspace.items()
+    pair_html = "".join(
+        f"<span class='pair'>{escape(pair)}</span>"
+        for pair in pairs
     )
     return "".join(
         [
-            "<div class='panel'><h2>Monitored pairs</h2><div class='pairs'>",
+            "<div class='panel'><h2>Monitored pairs</h2>",
+            "<div class='pairs'>",
             pair_html,
             "</div></div>",
             "<div class='three'>",
             "<div class='panel'><h2>Risk policy</h2><table><tbody>",
-            policy_rows,
+            _policy_rows(risk),
             "</tbody></table></div>",
             "<div class='panel'><h2>Integration policy</h2><table><tbody>",
-            integration_rows,
+            _policy_rows(integration),
             "</tbody></table></div>",
             "<div class='panel'><h2>Workspace policy</h2><table><tbody>",
-            workspace_rows,
+            _policy_rows(workspace),
             "</tbody></table></div></div>",
             "<div class='panel'><h2>Configuration boundary</h2>",
-            "<p class='muted'>These settings are non-secret operating policy stored in the repository. ",
-            "Passwords, database URLs, and ingest tokens remain environment secrets and are never ",
-            "rendered on this page.</p></div>",
+            "<p class='muted'>These settings are non-secret operating policy ",
+            "stored in the repository. Passwords, database URLs, and ingest ",
+            "tokens remain environment secrets and are never rendered on this ",
+            "page.</p></div>",
         ]
     )
 
@@ -206,27 +247,73 @@ def _styles() -> str:
   --red: #ff7f91;
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); font-family: Inter, system-ui; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, system-ui;
+}
 main { max-width: 1450px; margin: auto; padding: 24px 22px 60px; }
 a { color: var(--blue); }
-.top { display: flex; justify-content: space-between; gap: 18px; align-items: center; }
-.eyebrow { color: var(--blue); font-size: 11px; font-weight: 800; letter-spacing: .14em; }
+.top {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+}
+.eyebrow {
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .14em;
+}
 h1 { margin: 6px 0; }
 h2 { margin: 0 0 13px; font-size: 17px; }
 .muted { color: var(--muted); line-height: 1.55; }
-.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 13px; padding: 17px; margin-top: 14px; }
-.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  padding: 17px;
+  margin-top: 14px;
+}
+.two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.three {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
 .table-wrap { overflow: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
-th, td { padding: 9px 7px; border-bottom: 1px solid var(--line); text-align: left; }
+th, td {
+  padding: 9px 7px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
 th { color: #aebdd1; }
-.status { display: inline-block; padding: 4px 7px; border-radius: 999px; font-size: 10px; font-weight: 800; }
+.status {
+  display: inline-block;
+  padding: 4px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+}
 .status.ok { color: var(--green); border: 1px solid #275f50; }
 .status.warn { color: var(--amber); border: 1px solid #6c5835; }
 .status.bad { color: var(--red); border: 1px solid #653743; }
 .pairs { display: flex; flex-wrap: wrap; gap: 8px; }
-.pair { border: 1px solid #275f50; color: var(--green); padding: 7px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+.pair {
+  border: 1px solid #275f50;
+  color: var(--green);
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+}
 @media (max-width: 960px) {
   .two, .three { grid-template-columns: 1fr; }
 }
@@ -257,19 +344,23 @@ def _page(display_name: str) -> str:
             "<title>Cakrawala Forex System</title>",
             _styles(),
             "</head><body><main>",
-            "<div class='top'><div><div class='eyebrow'>INFRASTRUCTURE & TEST BED</div>",
+            "<div class='top'><div>",
+            "<div class='eyebrow'>INFRASTRUCTURE & TEST BED</div>",
             "<h1>Forex System Health</h1>",
-            f"<div class='muted'>Verified owner: {escape(display_name or 'Owner')}</div></div>",
+            f"<div class='muted'>Verified owner: "
+            f"{escape(display_name or 'Owner')}</div></div>",
             "<div><a href='/personal/forex'>Command Center</a> | ",
             "<a href='/personal/forex/risk'>Risk</a> | ",
             "<a href='/personal/forex/review'>Analytics</a> | ",
             "<a href='/logout'>Logout</a></div></div>",
-            "<div class='two'><div class='panel'><h2>Live public evidence</h2>",
+            "<div class='two'><div class='panel'>",
+            "<h2>Live public evidence</h2>",
             _checks_table(source_checks),
             "</div><div class='panel'><h2>Private infrastructure</h2>",
             _checks_table([*private_checks, model_check]),
             "</div></div>",
-            "<div class='panel'><div class='eyebrow'>CONFIGURATION & PAIR SETUP</div>",
+            "<div class='panel'>",
+            "<div class='eyebrow'>CONFIGURATION & PAIR SETUP</div>",
             "<h1>Operating Setup</h1></div>",
             _setup_content(),
             "</main></body></html>",
