@@ -24,6 +24,16 @@ class ModelHealthSummary:
     def production_ready(self) -> bool:
         return all(item.state == "PRODUCTION" and not item.stale for item in self.roles)
 
+    @property
+    def decision_support_state(self) -> str:
+        if self.production_ready:
+            return "PRODUCTION"
+        if any(item.state == "RESEARCH_ONLY" for item in self.roles):
+            return "RESEARCH_ONLY"
+        if any(item.state == "PRODUCTION" or item.stale for item in self.roles):
+            return "MIXED_OR_STALE"
+        return "BASELINE_ONLY"
+
 
 def _parse_date(value: object) -> date | None:
     if value in {None, ""}:
@@ -81,3 +91,4 @@ def load_model_health(*, today: date | None = None) -> ModelHealthSummary:
         )
 
     return ModelHealthSummary(roles=tuple(output))
+
