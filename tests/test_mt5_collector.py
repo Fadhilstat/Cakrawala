@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -8,9 +9,11 @@ from cakrawala.personal.mt5_collector import (
     DEFAULT_SYNC_URL,
     MT5CollectorError,
     build_payload,
+    initialize_mt5,
     mask_account_name,
     validate_mt5_runtime,
     validate_sync_url,
+    validate_terminal_path,
 )
 
 
@@ -48,6 +51,53 @@ def test_validate_mt5_runtime_requires_read_only_calls() -> None:
     incomplete = SimpleNamespace(initialize=lambda: True)
     with pytest.raises(MT5CollectorError, match="runtime is incomplete"):
         validate_mt5_runtime(incomplete)
+
+
+def test_validate_terminal_path_requires_existing_mt5_executable(tmp_path: Path) -> None:
+    terminal = tmp_path / "terminal64.exe"
+    terminal.write_bytes(b"test")
+    assert validate_terminal_path(str(terminal)) == str(terminal.resolve())
+
+    wrong_name = tmp_path / "other.exe"
+    wrong_name.write_bytes(b"test")
+    with pytest.raises(MT5CollectorError, match="terminal executable"):
+        validate_terminal_path(str(wrong_name))
+
+    with pytest.raises(MT5CollectorError, match="was not found"):
+        validate_terminal_path(str(tmp_path / "terminal.exe"))
+
+
+class FakeInitializeMT5:
+    def __init__(self, result: bool, error: tuple[int, str] = (0, "ok")) -> None:
+        self.result = result
+        self.error = error
+        self.path: str | None = None
+
+    def initialize(self, path: str | None = None) -> bool:
+        self.path = path
+        return self.result
+
+    def last_error(self) -> tuple[int, str]:
+        return self.error
+
+
+def test_initialize_mt5_uses_selected_terminal_path(tmp_path: Path) -> None:
+    terminal = tmp_path / "terminal64.exe"
+    terminal.write_bytes(b"test")
+    mt5 = FakeInitializeMT5(True)
+
+    initialize_mt5(mt5, str(terminal))
+
+    assert mt5.path == str(terminal.resolve())
+
+
+def test_initialize_mt5_explains_authorization_failure(tmp_path: Path) -> None:
+    terminal = tmp_path / "terminal64.exe"
+    terminal.write_bytes(b"test")
+    mt5 = FakeInitializeMT5(False, (-6, "Terminal: Authorization failed"))
+
+    with pytest.raises(MT5CollectorError, match="does not need your broker password"):
+        initialize_mt5(mt5, str(terminal))
 
 
 class FakeMT5:
