@@ -31,12 +31,22 @@ def render_ai_council() -> None:
 
     fresh = brief.is_fresh()
     top = st.columns(4)
-    top[0].metric("Brief status", "FRESH" if fresh else "STALE")
+    top[0].metric("Brief status", brief.presentation_status)
     top[1].metric("Research stance", brief.research_stance)
     top[2].metric("Analyst roles", len(brief.roles))
     top[3].metric("Verified sources", brief.source_count)
 
-    if not fresh:
+    if brief.status == "waiting_for_first_scheduled_brief":
+        st.info(
+            "Scheduled research belum menerbitkan brief siap pakai. Evidence deterministik "
+            "tetap menjadi acuan terminal."
+        )
+    elif brief.status == "failed":
+        st.warning(
+            "Scheduled research terakhir gagal. Brief ini tidak boleh dipakai sebagai current "
+            "research."
+        )
+    elif not fresh:
         st.warning(
             "Brief ini lebih lama dari freshness window. Gunakan sebagai konteks historis, "
             "bukan current research."
@@ -71,7 +81,10 @@ def render_ai_council() -> None:
     if brief.citations:
         st.markdown("### Sources")
         for citation in brief.citations:
-            st.markdown(f"- [{citation['label']}]({citation['url']})")
+            st.markdown(
+                f"- [{citation['label']}]({citation['url']}) | verified "
+                f"{citation['verified_at']}"
+            )
 
     st.divider()
     st.caption(
@@ -81,3 +94,4 @@ def render_ai_council() -> None:
         brief.signal_policy_note
         or "AI analysis cannot create or replace Cakrawala's deterministic signal policy."
     )
+
