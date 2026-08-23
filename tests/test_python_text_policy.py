@@ -6,6 +6,8 @@ def test_python_files_do_not_contain_em_dash() -> None:
     offenders = [
         path
         for path in root.rglob("*.py")
-        if ".venv" not in path.parts and chr(0x2014) in path.read_text(encoding="utf-8")
+        if not any(part.startswith(".venv") for part in path.parts)
+        and chr(0x2014) in path.read_text(encoding="utf-8")
     ]
     assert offenders == []
+
