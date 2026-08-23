@@ -7,7 +7,7 @@ def main() -> int:
     root = Path(__file__).resolve().parents[1]
     offenders: list[str] = []
     for path in sorted(root.rglob("*.py")):
-        if any(part in {".venv", ".git"} for part in path.parts):
+        if any(part == ".git" or part.startswith(".venv") for part in path.parts):
             continue
         if chr(0x2014) in path.read_text(encoding="utf-8"):
             offenders.append(str(path.relative_to(root)))
@@ -22,3 +22,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
