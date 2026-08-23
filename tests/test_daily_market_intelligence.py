@@ -7,7 +7,11 @@ import pytest
 
 from cakrawala.data.http import JsonResponse
 from cakrawala.data.providers import twelve_data
-from cakrawala.intelligence.market_brief import MarketBias, assess_daily_prices
+from cakrawala.intelligence.market_brief import (
+    MarketBias,
+    apply_fx_context_gates,
+    assess_daily_prices,
+)
 
 
 @dataclass(frozen=True)
@@ -71,6 +75,74 @@ def test_daily_market_assessment_requires_enough_completed_history() -> None:
     points = _series(100, [1] * 10, end=end)
     result = assess_daily_prices("BBCA", points, today=end.date())
     assert result.bias == MarketBias.INSUFFICIENT
+
+
+def test_fx_context_gate_requires_official_event_calendar() -> None:
+    end = datetime(2026, 8, 21)
+    assessment = assess_daily_prices(
+        "EURUSD",
+        _series(100, [1] * 20, end=end),
+        today=end.date(),
+    )
+    result = apply_fx_context_gates(
+        assessment,
+        event_calendar_available=False,
+        event_risk=False,
+        macro_alignment="SUPPORTS_UP",
+    )
+    assert result.bias == MarketBias.INSUFFICIENT
+    assert any("event risk" in reason for reason in result.rationale)
+
+
+def test_fx_context_gate_waits_near_scheduled_event() -> None:
+    end = datetime(2026, 8, 21)
+    assessment = assess_daily_prices(
+        "EURUSD",
+        _series(100, [1] * 20, end=end),
+        today=end.date(),
+    )
+    result = apply_fx_context_gates(
+        assessment,
+        event_calendar_available=True,
+        event_risk=True,
+        macro_alignment="SUPPORTS_UP",
+    )
+    assert result.bias == MarketBias.WAIT
+    assert any("scheduled high-impact release" in reason for reason in result.rationale)
+
+
+def test_fx_context_gate_waits_on_macro_conflict() -> None:
+    end = datetime(2026, 8, 21)
+    assessment = assess_daily_prices(
+        "EURUSD",
+        _series(100, [1] * 20, end=end),
+        today=end.date(),
+    )
+    result = apply_fx_context_gates(
+        assessment,
+        event_calendar_available=True,
+        event_risk=False,
+        macro_alignment="SUPPORTS_DOWN",
+    )
+    assert result.bias == MarketBias.WAIT
+    assert any("conflicts" in reason for reason in result.rationale)
+
+
+def test_fx_context_gate_keeps_supported_directional_bias() -> None:
+    end = datetime(2026, 8, 21)
+    assessment = assess_daily_prices(
+        "EURUSD",
+        _series(100, [1] * 20, end=end),
+        today=end.date(),
+    )
+    result = apply_fx_context_gates(
+        assessment,
+        event_calendar_available=True,
+        event_risk=False,
+        macro_alignment="SUPPORTS_UP",
+    )
+    assert result.bias == MarketBias.BUY_BIAS
+    assert any("supports" in reason for reason in result.rationale)
 
 
 def test_twelve_data_requires_server_side_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
