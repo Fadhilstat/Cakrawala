@@ -30,6 +30,12 @@ validate the JSON schema and HTTPS citations, and merge only a data-only pull re
 file list contains exactly that file. It must never modify dependencies or application code during
 a research update.
 
+A brief with status `ready` must include at least one analyst role and one unique HTTPS citation.
+Every citation records when the source was checked, and that verification must be no more than 48
+hours older than the generated brief. `source_count` must match the number of unique citation URLs.
+Placeholder, failed, zero-source, duplicate-source, and internally inconsistent briefs remain
+visible as unavailable context and cannot be labelled fresh research.
+
 ## Cost model
 
 This design does not require an OpenAI API key in Streamlit and does not create per-page OpenAI API
@@ -42,3 +48,4 @@ not claim that the OpenAI API itself is free.
 The UI treats a council brief older than 36 hours as stale. A stale brief remains visible only as
 historical context and is not presented as current research. The web terminal continues to operate
 with deterministic analytics when no valid AI brief is available.
+
