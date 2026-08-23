@@ -33,6 +33,7 @@ from cakrawala.personal.mt5_collector import (  # noqa: E402
     DEFAULT_SYNC_URL,
     MT5CollectorError,
     collect_payload,
+    load_mt5,
     mask_account_name,
     post_payload,
 )
@@ -40,6 +41,7 @@ from cakrawala.personal.mt5_collector import (  # noqa: E402
 APP_TITLE = "Cakrawala MT5 Collector"
 APP_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Cakrawala"
 CONFIG_PATH = APP_DIR / "mt5_collector.json"
+RUNTIME_SELF_TEST_FLAG = "--runtime-self-test"
 
 
 class DATA_BLOB(ctypes.Structure):
@@ -154,6 +156,16 @@ def _summary(payload: dict[str, object]) -> str:
         f"Open positions: {position_count}\n"
         f"Closed positions in selected history window: {deal_count}"
     )
+
+
+def runtime_self_test() -> int:
+    try:
+        mt5 = load_mt5()
+    except MT5CollectorError:
+        return 1
+    version = getattr(mt5, "__version__", "unknown")
+    print(f"MetaTrader5 runtime available: {version}")
+    return 0
 
 
 class CollectorApp:
@@ -342,13 +354,16 @@ class CollectorApp:
         self._run_background(task, "Collecting and syncing private MT5 data...")
 
 
-def main() -> None:
+def main() -> int:
     if os.name != "nt":
         raise SystemExit("Cakrawala MT5 Collector is intended for Windows.")
+    if RUNTIME_SELF_TEST_FLAG in sys.argv[1:]:
+        return runtime_self_test()
     root = Tk()
     CollectorApp(root)
     root.mainloop()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
