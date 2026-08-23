@@ -35,10 +35,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e '.[dev]'
           python -m pip install MetaTrader5==5.0.6090 PyInstaller==6.21.0
-      - name: Verify source runtime import
+      - name: Verify source runtime imports
         shell: pwsh
         run: |
-          python -c "import MetaTrader5 as mt5; required=('initialize','shutdown','account_info','positions_get','history_deals_get'); missing=[name for name in required if not callable(getattr(mt5,name,None))]; assert not missing, missing; print(mt5.__version__)"
+          python -c "import numpy as np; import MetaTrader5 as mt5; required=('initialize','shutdown','account_info','positions_get','history_deals_get'); missing=[name for name in required if not callable(getattr(mt5,name,None))]; assert not missing, missing; print(f'MetaTrader5={mt5.__version__} NumPy={np.__version__}')"
       - name: Run collector tests
         shell: pwsh
         run: python -m pytest tests/test_mt5_collector.py -q
@@ -54,6 +54,8 @@ jobs:
             --paths src `
             --hidden-import MetaTrader5 `
             --collect-all MetaTrader5 `
+            --hidden-import numpy `
+            --collect-all numpy `
             scripts/mt5_collector_app.py
       - name: Verify bundled MetaTrader5 runtime
         shell: pwsh
