@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import asdict
-from datetime import UTC, datetime
 from typing import Any
 
 import pandas as pd
@@ -10,8 +8,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from cakrawala.config import load_yaml
-from cakrawala.personal.storage import list_portfolio_transactions
-from cakrawala.terminal.public_data import market_risk_stats, public_snapshot
+from cakrawala.terminal.public_data import market_risk_stats
 
 
 def _number(value: float | int | None, digits: int = 2) -> str:
@@ -423,126 +420,8 @@ def _execution(snapshot: dict[str, Any]) -> None:
         )
 
 
-def _owner_config() -> tuple[bool, str | None, str | None]:
-    try:
-        auth = st.secrets.get("auth", {})
-        settings = st.secrets.get("cakrawala", {})
-    except FileNotFoundError:
-        return False, None, None
-
-    owner_sub = settings.get("owner_sub")
-    database_url = settings.get("database_personal_url")
-    required = (
-        "redirect_uri",
-        "cookie_secret",
-        "client_id",
-        "client_secret",
-        "server_metadata_url",
-    )
-    configured = bool(owner_sub) and all(auth.get(key) for key in required)
-    return (
-        configured,
-        str(owner_sub) if owner_sub else None,
-        str(database_url) if database_url else None,
-    )
-
-
-def _personal() -> None:
-    st.subheader("Owner Research")
-    configured, owner_sub, database_url = _owner_config()
-    if not configured:
-        st.warning(
-            "Personal Mode belum aktif. OIDC owner dan private database belum "
-            "dikonfigurasi."
-        )
-        st.write("Public research tetap dapat digunakan tanpa membuka data pribadi.")
-        return
-    if not st.user.is_logged_in:
-        st.button("Log in with Google", on_click=st.login, use_container_width=True)
-        return
-    if str(st.user.get("sub", "")) != owner_sub:
-        st.error("Akun terautentikasi tetapi tidak memiliki akses owner.")
-        st.button("Log out", on_click=st.logout)
-        return
-
-    st.success("Owner identity verified")
-    st.button("Log out", on_click=st.logout)
-    if not database_url:
-        st.warning("Private database belum dikonfigurasi.")
-        return
-    try:
-        transactions = list_portfolio_transactions(database_url, owner_sub)
-    except Exception as exc:
-        st.warning("Portfolio ledger tidak dapat dimuat. Data pribadi tetap ditutup.")
-        st.caption(f"Status teknis: {type(exc).__name__}")
-        return
-    if transactions:
-        rows = [asdict(item) for item in transactions]
-        st.dataframe(rows, use_container_width=True, hide_index=True)
-    else:
-        st.info("Belum ada transaksi pada private ledger.")
-
-
 def run() -> None:
-    st.set_page_config(
-        page_title="Cakrawala Intelligence Terminal",
-        page_icon="C",
-        layout="wide",
-        initial_sidebar_state="expanded",
-    )
-    _header()
+    from cakrawala.terminal.enhanced_ui import run as run_public_terminal
 
-    with st.sidebar:
-        st.header("Cakrawala")
-        mode = st.radio(
-            "Access",
-            ["Public Mode", "Personal Mode"],
-            label_visibility="collapsed",
-        )
-        st.divider()
-        st.caption("Public: research and public evidence")
-        st.caption("Personal: owner-only private state")
-        if st.button("Refresh evidence", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
+    run_public_terminal()
 
-    if mode == "Personal Mode":
-        _personal()
-        return
-
-    snapshot = public_snapshot()
-    page = st.radio(
-        "Workspace",
-        [
-            "Overview",
-            "News & Research",
-            "Market",
-            "Indonesia & Macro",
-            "Tool Radar",
-            "Execution",
-        ],
-        horizontal=True,
-        label_visibility="collapsed",
-    )
-    st.divider()
-
-    if page == "Overview":
-        _overview(snapshot)
-    elif page == "News & Research":
-        _news_research(snapshot)
-    elif page == "Market":
-        _market(snapshot)
-    elif page == "Indonesia & Macro":
-        _macro(snapshot)
-    elif page == "Tool Radar":
-        _tool_radar()
-    else:
-        _execution(snapshot)
-
-    with st.expander("System status"):
-        st.write(f"Snapshot: {datetime.now(UTC).isoformat()}")
-        if snapshot["errors"]:
-            st.warning("Some public sources are unavailable in this snapshot.")
-            st.json(snapshot["errors"])
-        else:
-            st.success("All public sources used in this snapshot responded successfully.")
