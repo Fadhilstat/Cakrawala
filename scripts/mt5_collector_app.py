@@ -20,6 +20,7 @@ from tkinter import (
     Label,
     Text,
     Tk,
+    filedialog,
     messagebox,
     simpledialog,
 )
@@ -36,6 +37,7 @@ from cakrawala.personal.mt5_collector import (  # noqa: E402
     load_mt5,
     mask_account_name,
     post_payload,
+    validate_terminal_path,
 )
 
 APP_TITLE = "Cakrawala MT5 Collector"
@@ -113,28 +115,67 @@ def _unprotect_secret(encoded: str) -> str:
         kernel32.LocalFree(output.pbData)
 
 
-def _save_token(token: str) -> None:
+def _load_config() -> dict[str, object]:
+    if not CONFIG_PATH.exists():
+        return {}
+    try:
+        payload = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _save_config(payload: dict[str, object]) -> None:
     APP_DIR.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "version": 1,
-        "sync_url": DEFAULT_SYNC_URL,
-        "protected_token": _protect_secret(token),
-    }
     CONFIG_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+def _save_token(token: str) -> None:
+    payload = _load_config()
+    payload.update(
+        {
+            "version": 2,
+            "sync_url": DEFAULT_SYNC_URL,
+            "protected_token": _protect_secret(token),
+        }
+    )
+    _save_config(payload)
+
+
 def _load_token() -> str | None:
-    if not CONFIG_PATH.exists():
+    payload = _load_config()
+    if payload.get("sync_url") != DEFAULT_SYNC_URL:
+        return None
+    encoded = str(payload.get("protected_token", ""))
+    if not encoded:
         return None
     try:
-        payload = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
-        if payload.get("version") != 1:
-            return None
-        if payload.get("sync_url") != DEFAULT_SYNC_URL:
-            return None
-        encoded = str(payload.get("protected_token", ""))
-        return _unprotect_secret(encoded) if encoded else None
+        return _unprotect_secret(encoded)
     except (OSError, ValueError, RuntimeError, ctypes.Error):
+        return None
+
+
+def _save_terminal_path(path: str) -> None:
+    selected = validate_terminal_path(path)
+    payload = _load_config()
+    payload.update(
+        {
+            "version": 2,
+            "sync_url": DEFAULT_SYNC_URL,
+            "terminal_path": selected,
+        }
+    )
+    _save_config(payload)
+
+
+def _load_terminal_path() -> str | None:
+    payload = _load_config()
+    value = str(payload.get("terminal_path", "")).strip()
+    if not value:
+        return None
+    try:
+        return validate_terminal_path(value)
+    except MT5CollectorError:
         return None
 
 
@@ -172,14 +213,12 @@ class CollectorApp:
     def __init__(self, root: Tk) -> None:
         self.root = root
         self.root.title(APP_TITLE)
-        self.root.geometry("620x430")
-        self.root.minsize(560, 380)
+        self.root.geometry("680x470")
+        self.root.minsize(620, 420)
 
-        Label(
-            root,
-            text=APP_TITLE,
-            font=("Segoe UI", 18, "bold"),
-        ).pack(padx=20, pady=(22, 4), anchor="w")
+        Label(root, text=APP_TITLE, font=("Segoe UI", 18, "bold")).pack(
+            padx=20, pady=(22, 4), anchor="w"
+        )
         Label(
             root,
             text=(
@@ -187,46 +226,61 @@ class CollectorApp:
                 "It does not place, modify, or close orders."
             ),
             font=("Segoe UI", 10),
-            wraplength=570,
+            wraplength=630,
             justify="left",
         ).pack(padx=20, pady=(0, 14), anchor="w")
 
         button_row = Frame(root)
         button_row.pack(fill="x", padx=20, pady=4)
+        self.select_button = Button(
+            button_row,
+            text="1. Select MT5 Terminal",
+            command=self.select_terminal,
+            width=20,
+        )
+        self.select_button.pack(side=LEFT, padx=(0, 8))
         self.test_button = Button(
             button_row,
-            text="1. Test MT5 Read-Only",
+            text="2. Test Read-Only",
             command=self.test_mt5,
-            width=22,
+            width=18,
         )
-        self.test_button.pack(side=LEFT, padx=(0, 8))
+        self.test_button.pack(side=LEFT, padx=8)
         self.setup_button = Button(
             button_row,
-            text="2. Configure Private Sync",
+            text="3. Configure Sync",
             command=self.configure_sync,
-            width=22,
+            width=18,
         )
         self.setup_button.pack(side=LEFT, padx=8)
         self.sync_button = Button(
             button_row,
-            text="3. Sync Now",
+            text="4. Sync Now",
             command=self.sync_now,
-            width=18,
+            width=14,
         )
         self.sync_button.pack(side=RIGHT, padx=(8, 0))
 
+        self.terminal_status = Label(
+            root,
+            text=self._terminal_status(),
+            font=("Segoe UI", 10, "bold"),
+            anchor="w",
+            justify="left",
+        )
+        self.terminal_status.pack(fill="x", padx=20, pady=(14, 2))
         self.status = Label(
             root,
             text=self._initial_status(),
             font=("Segoe UI", 10, "bold"),
             anchor="w",
         )
-        self.status.pack(fill="x", padx=20, pady=(14, 6))
+        self.status.pack(fill="x", padx=20, pady=(2, 6))
 
-        self.log = Text(root, height=13, wrap="word", font=("Consolas", 10))
+        self.log = Text(root, height=14, wrap="word", font=("Consolas", 10))
         self.log.pack(fill=BOTH, expand=True, padx=20, pady=(0, 20))
         self._write(
-            "Keep MetaTrader 5 open and logged in. Start with the read-only test.\n"
+            "Select the terminal64.exe for the broker terminal that is already open and logged in.\n"
         )
 
     def _initial_status(self) -> str:
@@ -234,13 +288,24 @@ class CollectorApp:
             return "Private sync token: configured"
         return "Private sync token: not configured"
 
+    def _terminal_status(self) -> str:
+        path = _load_terminal_path()
+        if not path:
+            return "MT5 terminal: not selected"
+        return f"MT5 terminal: {Path(path).parent.name} / {Path(path).name}"
+
     def _write(self, text: str) -> None:
         self.log.insert(END, text)
         self.log.see(END)
 
     def _set_busy(self, busy: bool, label: str | None = None) -> None:
         state = "disabled" if busy else "normal"
-        for button in (self.test_button, self.setup_button, self.sync_button):
+        for button in (
+            self.select_button,
+            self.test_button,
+            self.setup_button,
+            self.sync_button,
+        ):
             button.config(state=state)
         if label:
             self.status.config(text=label)
@@ -263,14 +328,35 @@ class CollectorApp:
         self._write(f"ERROR: {message}\n")
         messagebox.showerror(APP_TITLE, message)
 
+    def select_terminal(self) -> None:
+        selected = filedialog.askopenfilename(
+            parent=self.root,
+            title="Select MetaTrader 5 terminal",
+            filetypes=[("MetaTrader terminal", "*.exe"), ("Executable files", "*.exe")],
+        )
+        if not selected:
+            return
+        try:
+            _save_terminal_path(selected)
+        except Exception as exc:
+            self._handle_error(exc)
+            return
+        self.terminal_status.config(text=self._terminal_status())
+        self._write("MT5 terminal selected. Run the read-only test next.\n")
+
     def test_mt5(self) -> None:
+        terminal_path = _load_terminal_path()
+        if not terminal_path:
+            messagebox.showwarning(APP_TITLE, "Select the MT5 terminal first.")
+            return
+
         def task() -> None:
-            payload = collect_payload(history_days=120)
+            payload = collect_payload(history_days=120, terminal_path=terminal_path)
             summary = _summary(payload)
             self.root.after(0, self._write, summary + "\n")
             self.root.after(0, messagebox.showinfo, APP_TITLE, summary)
 
-        self._run_background(task, "Testing local MT5 connection...")
+        self._run_background(task, "Testing the selected local MT5 terminal...")
 
     def configure_sync(self) -> None:
         current = _load_token()
@@ -332,6 +418,10 @@ class CollectorApp:
 
     def sync_now(self) -> None:
         token = _load_token()
+        terminal_path = _load_terminal_path()
+        if not terminal_path:
+            messagebox.showwarning(APP_TITLE, "Select and test the MT5 terminal first.")
+            return
         if not token:
             messagebox.showwarning(
                 APP_TITLE,
@@ -340,7 +430,7 @@ class CollectorApp:
             return
 
         def task() -> None:
-            payload = collect_payload(history_days=120)
+            payload = collect_payload(history_days=120, terminal_path=terminal_path)
             result = post_payload(token, payload)
             line = (
                 "Sync complete. "
