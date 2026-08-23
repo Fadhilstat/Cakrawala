@@ -140,6 +140,104 @@ def assess_change_windows(
     )
 
 
+def apply_fx_context_gates(
+    assessment: MarketAssessment,
+    *,
+    event_calendar_available: bool,
+    event_risk: bool,
+    macro_alignment: str,
+) -> MarketAssessment:
+    normalized_macro = macro_alignment.strip().upper()
+    allowed_macro = {"SUPPORTS_UP", "SUPPORTS_DOWN", "MIXED", "NO_CONTEXT"}
+    if normalized_macro not in allowed_macro:
+        raise ValueError("macro_alignment is not supported")
+
+    if assessment.bias == MarketBias.INSUFFICIENT:
+        return assessment
+
+    if not event_calendar_available:
+        return MarketAssessment(
+            symbol=assessment.symbol,
+            bias=MarketBias.INSUFFICIENT,
+            as_of=assessment.as_of,
+            change_1d_pct=assessment.change_1d_pct,
+            change_5d_pct=assessment.change_5d_pct,
+            change_20d_pct=assessment.change_20d_pct,
+            rationale=assessment.rationale
+            + ("Official scheduled-event risk could not be verified.",),
+            invalidation="Refresh the official event calendar before using the FX bias.",
+        )
+
+    if event_risk:
+        return MarketAssessment(
+            symbol=assessment.symbol,
+            bias=MarketBias.WAIT,
+            as_of=assessment.as_of,
+            change_1d_pct=assessment.change_1d_pct,
+            change_5d_pct=assessment.change_5d_pct,
+            change_20d_pct=assessment.change_20d_pct,
+            rationale=assessment.rationale
+            + ("A scheduled high-impact release is close enough to raise event risk.",),
+            invalidation="Reassess after the event is released and completed-price data refreshes.",
+        )
+
+    trend_up = assessment.bias == MarketBias.BUY_BIAS
+    trend_down = assessment.bias == MarketBias.SELL_BIAS
+    macro_conflict = (
+        (trend_up and normalized_macro == "SUPPORTS_DOWN")
+        or (trend_down and normalized_macro == "SUPPORTS_UP")
+    )
+    if macro_conflict:
+        return MarketAssessment(
+            symbol=assessment.symbol,
+            bias=MarketBias.WAIT,
+            as_of=assessment.as_of,
+            change_1d_pct=assessment.change_1d_pct,
+            change_5d_pct=assessment.change_5d_pct,
+            change_20d_pct=assessment.change_20d_pct,
+            rationale=assessment.rationale
+            + ("Recent macro surprise evidence conflicts with the price direction.",),
+            invalidation="Wait for price and macro evidence to stop materially conflicting.",
+        )
+
+    if normalized_macro == "MIXED":
+        return MarketAssessment(
+            symbol=assessment.symbol,
+            bias=assessment.bias,
+            as_of=assessment.as_of,
+            change_1d_pct=assessment.change_1d_pct,
+            change_5d_pct=assessment.change_5d_pct,
+            change_20d_pct=assessment.change_20d_pct,
+            rationale=assessment.rationale
+            + ("Recent macro surprise evidence is mixed and does not confirm the bias.",),
+            invalidation=assessment.invalidation,
+        )
+
+    macro_support = (
+        (trend_up and normalized_macro == "SUPPORTS_UP")
+        or (trend_down and normalized_macro == "SUPPORTS_DOWN")
+    )
+    if macro_support:
+        rationale = assessment.rationale + (
+            "Recent macro surprise evidence supports the completed-price direction.",
+        )
+    else:
+        rationale = assessment.rationale + (
+            "No fresh macro surprise context is available to confirm or veto the bias.",
+        )
+
+    return MarketAssessment(
+        symbol=assessment.symbol,
+        bias=assessment.bias,
+        as_of=assessment.as_of,
+        change_1d_pct=assessment.change_1d_pct,
+        change_5d_pct=assessment.change_5d_pct,
+        change_20d_pct=assessment.change_20d_pct,
+        rationale=rationale,
+        invalidation=assessment.invalidation,
+    )
+
+
 def assess_daily_prices(
     symbol: str,
     points: list[DailyPricePoint],

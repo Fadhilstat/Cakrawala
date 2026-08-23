@@ -2,16 +2,24 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from html import escape
 from typing import Any
 
 from flask import Flask, Response, redirect, session
 
+from cakrawala.data.providers.bls_calendar import fetch_bls_calendar
 from cakrawala.data.providers.ecb_fx import fetch_forex_pairs
 from cakrawala.data.providers.twelve_data import fetch_daily_equity_history
+from cakrawala.intelligence.economic_calendar_evidence import (
+    EconomicCalendarSnapshot,
+    load_calendar_snapshot,
+    macro_context_for_pair,
+)
 from cakrawala.intelligence.market_brief import (
     MarketAssessment,
     MarketBias,
+    apply_fx_context_gates,
     assess_change_windows,
     assess_daily_prices,
 )
@@ -76,6 +84,31 @@ def _assessment_row(item: MarketAssessment, source: str) -> str:
     )
 
 
+def _event_gate(errors: list[str]) -> tuple[bool, bool]:
+    try:
+        events = fetch_bls_calendar().data
+    except Exception as exc:
+        errors.append(f"BLS event calendar unavailable: {type(exc).__name__}")
+        return False, False
+
+    now = datetime.now(UTC)
+    cutoff = now + timedelta(hours=24)
+    event_risk = any(now <= item.starts_at <= cutoff for item in events)
+    return True, event_risk
+
+
+def _calendar_snapshot(errors: list[str]) -> EconomicCalendarSnapshot | None:
+    try:
+        snapshot = load_calendar_snapshot()
+    except Exception as exc:
+        errors.append(f"Macro surprise snapshot unavailable: {type(exc).__name__}")
+        return None
+    if not snapshot.is_fresh():
+        errors.append("Macro surprise snapshot is stale and excluded from FX gating.")
+        return None
+    return snapshot
+
+
 def _fx_rows(errors: list[str]) -> list[str]:
     try:
         result = fetch_forex_pairs()
@@ -83,6 +116,8 @@ def _fx_rows(errors: list[str]) -> list[str]:
         errors.append(f"ECB FX unavailable: {type(exc).__name__}")
         return []
 
+    event_calendar_available, event_risk = _event_gate(errors)
+    calendar_snapshot = _calendar_snapshot(errors)
     rows: list[str] = []
     for snapshot in result.data:
         assessment = assess_change_windows(
@@ -92,7 +127,24 @@ def _fx_rows(errors: list[str]) -> list[str]:
             change_5d_pct=snapshot.change_5d_pct,
             change_20d_pct=snapshot.change_20d_pct,
         )
-        rows.append(_assessment_row(assessment, "ECB reference rates"))
+        macro_alignment = "NO_CONTEXT"
+        if calendar_snapshot is not None:
+            macro_alignment = macro_context_for_pair(
+                snapshot.pair,
+                calendar_snapshot,
+            ).alignment
+        assessment = apply_fx_context_gates(
+            assessment,
+            event_calendar_available=event_calendar_available,
+            event_risk=event_risk,
+            macro_alignment=macro_alignment,
+        )
+        rows.append(
+            _assessment_row(
+                assessment,
+                "ECB reference rates + BLS event gate + macro evidence",
+            )
+        )
     return rows
 
 
@@ -201,12 +253,15 @@ def _page(display_name: str) -> str:
             "<a href='/personal/ai-lab'>AI Lab</a> | <a href='/logout'>Logout</a>",
             "</div></div>",
             "<div class='panel'><strong>Interpretation boundary:</strong> ",
-            "BUY BIAS and SELL BIAS describe aligned completed-price momentum. They are ",
-            "not broker orders, guaranteed returns, or permission to ignore event, spread, ",
-            "liquidity, position-sizing, model-health, or risk checks.</div>",
+            "BUY BIAS and SELL BIAS require aligned completed-price momentum. FX states are ",
+            "also gated by official scheduled-event availability and recent macro conflict. ",
+            "They are not broker orders, guaranteed returns, or permission to ignore spread, ",
+            "liquidity, position sizing, model health, or risk checks.</div>",
             warnings,
-            "<div class='panel'><h2>FX momentum board</h2>",
-            "<p class='muted'>Official ECB reference-rate context. ECB rates are not ",
+            "<div class='panel'><h2>FX decision-support board</h2>",
+            "<p class='muted'>Official ECB reference rates provide the price context. The BLS ",
+            "calendar is used as a fail-closed near-term event gate. Fresh bounded macro ",
+            "surprise evidence may support or veto the directional state. ECB rates are not ",
             "executable broker quotes.</p>",
             _table(fx_rows),
             "</div>",
@@ -218,8 +273,8 @@ def _page(display_name: str) -> str:
             "</div>",
             "<div class='panel'><strong>Daily workflow:</strong> validate source freshness, ",
             "review macro and event risk, compare the directional state with broker prices, ",
-            "write invalidation, size risk, and record the outcome. A WAIT state is a valid ",
-            "decision when evidence is mixed.</div>",
+            "write invalidation, size risk, and record the outcome. WAIT and INSUFFICIENT are ",
+            "valid decisions when evidence is mixed, stale, or unavailable.</div>",
             "</main></body></html>",
         ]
     )
