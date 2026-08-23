@@ -23,6 +23,7 @@ from cakrawala.intelligence.market_brief import (
     assess_change_windows,
     assess_daily_prices,
 )
+from cakrawala.models.health import load_model_health
 
 
 @dataclass(frozen=True)
@@ -194,6 +195,47 @@ def _table(rows: list[str]) -> str:
     )
 
 
+def _model_health_panel() -> str:
+    try:
+        summary = load_model_health()
+    except Exception as exc:
+        return (
+            "<div class='warning'><strong>Model health unavailable:</strong> "
+            f"{escape(type(exc).__name__)}</div>"
+        )
+
+    rows: list[str] = []
+    for item in summary.roles:
+        model_name = item.model_name or "none"
+        verified = item.latest_verified_run.isoformat() if item.latest_verified_run else "N/A"
+        freshness = "STALE" if item.stale else "CURRENT"
+        rows.append(
+            "<tr>"
+            f"<td>{escape(item.role)}</td>"
+            f"<td>{escape(item.state)}</td>"
+            f"<td>{escape(model_name)}</td>"
+            f"<td>{escape(verified)}</td>"
+            f"<td>{escape(freshness)}</td>"
+            f"<td>{escape(item.message)}</td>"
+            "</tr>"
+        )
+
+    overall = "PRODUCTION MODEL READY" if summary.production_ready else "BASELINE OR RESEARCH ONLY"
+    return "".join(
+        [
+            "<div class='panel'><h2>Model health and role status</h2>",
+            f"<p><strong>{escape(overall)}</strong></p>",
+            "<p class='muted'>A directional daily state does not imply model confirmation. "
+            "When no promoted model is assigned, the dashboard is explicitly baseline-only.</p>",
+            "<div class='table-wrap'><table><thead><tr>",
+            "<th>Role</th><th>State</th><th>Model</th><th>Verified run</th>",
+            "<th>Freshness</th><th>Meaning</th></tr></thead><tbody>",
+            "".join(rows),
+            "</tbody></table></div></div>",
+        ]
+    )
+
+
 def _styles() -> str:
     return """
 <style>
@@ -258,6 +300,7 @@ def _page(display_name: str) -> str:
             "They are not broker orders, guaranteed returns, or permission to ignore spread, ",
             "liquidity, position sizing, model health, or risk checks.</div>",
             warnings,
+            _model_health_panel(),
             "<div class='panel'><h2>FX decision-support board</h2>",
             "<p class='muted'>Official ECB reference rates provide the price context. The BLS ",
             "calendar is used as a fail-closed near-term event gate. Fresh bounded macro ",
@@ -272,9 +315,10 @@ def _page(display_name: str) -> str:
             _table(equity_rows),
             "</div>",
             "<div class='panel'><strong>Daily workflow:</strong> validate source freshness, ",
-            "review macro and event risk, compare the directional state with broker prices, ",
-            "write invalidation, size risk, and record the outcome. WAIT and INSUFFICIENT are ",
-            "valid decisions when evidence is mixed, stale, or unavailable.</div>",
+            "review macro and event risk, check model-role health, compare the directional ",
+            "state with broker prices, write invalidation, size risk, and record the outcome. ",
+            "WAIT and INSUFFICIENT are valid decisions when evidence is mixed, stale, or ",
+            "unavailable.</div>",
             "</main></body></html>",
         ]
     )
