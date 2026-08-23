@@ -19,6 +19,13 @@ DEFAULT_SYNC_URL = (
 ALLOWED_SYNC_HOST = "cakrawala-intelligence-native.vercel.app"
 SYNC_PATH = "/personal/forex/sync"
 MAX_RESPONSE_BYTES = 200_000
+REQUIRED_MT5_CALLS = (
+    "initialize",
+    "shutdown",
+    "account_info",
+    "positions_get",
+    "history_deals_get",
+)
 
 
 class MT5CollectorError(RuntimeError):
@@ -48,6 +55,13 @@ def mask_account_name(account_name: str) -> str:
     return "*" * (len(value) - 4) + value[-4:]
 
 
+def validate_mt5_runtime(mt5: Any) -> None:
+    missing = [name for name in REQUIRED_MT5_CALLS if not callable(getattr(mt5, name, None))]
+    if missing:
+        fields = ", ".join(sorted(missing))
+        raise MT5CollectorError(f"MetaTrader 5 runtime is incomplete: {fields}")
+
+
 def load_mt5() -> Any:
     try:
         import MetaTrader5 as mt5
@@ -55,6 +69,7 @@ def load_mt5() -> Any:
         raise MT5CollectorError(
             "MetaTrader 5 support is unavailable in this collector build."
         ) from exc
+    validate_mt5_runtime(mt5)
     return mt5
 
 
