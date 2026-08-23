@@ -6,17 +6,21 @@ on:
     paths:
       - '.github/workflows/windows-mt5-collector.yml'
       - 'scripts/mt5_collector_app.py'
+      - 'scripts/mt5_readonly_sync.py'
       - 'src/cakrawala/personal/mt5_collector.py'
       - 'src/cakrawala/personal/mt5_normalize.py'
       - 'tests/test_mt5_collector.py'
+      - 'tests/test_mt5_readonly_sync.py'
   push:
     branches: [main]
     paths:
       - '.github/workflows/windows-mt5-collector.yml'
       - 'scripts/mt5_collector_app.py'
+      - 'scripts/mt5_readonly_sync.py'
       - 'src/cakrawala/personal/mt5_collector.py'
       - 'src/cakrawala/personal/mt5_normalize.py'
       - 'tests/test_mt5_collector.py'
+      - 'tests/test_mt5_readonly_sync.py'
 
 permissions:
   contents: read
@@ -41,7 +45,11 @@ jobs:
           python -c "import numpy as np; import MetaTrader5 as mt5; required=('initialize','shutdown','account_info','positions_get','history_deals_get'); missing=[name for name in required if not callable(getattr(mt5,name,None))]; assert not missing, missing; print(f'MetaTrader5={mt5.__version__} NumPy={np.__version__}')"
       - name: Run collector tests
         shell: pwsh
-        run: python -m pytest tests/test_mt5_collector.py -q
+        run: >-
+          python -m pytest
+          tests/test_mt5_collector.py
+          tests/test_mt5_readonly_sync.py
+          -q
       - name: Build one-file collector
         shell: pwsh
         run: |
@@ -83,3 +91,4 @@ jobs:
             dist/Cakrawala-MT5-Collector.sha256
           if-no-files-found: error
           retention-days: 30
+
