@@ -5,6 +5,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from cakrawala.personal.mt5_normalize import (
@@ -26,6 +27,12 @@ REQUIRED_MT5_CALLS = (
     "positions_get",
     "history_deals_get",
 )
+APPROVED_TERMINAL_NAMES = {
+    "terminal.exe",
+    "terminal64.exe",
+    "metatrader.exe",
+    "metatrader64.exe",
+}
 
 
 class MT5CollectorError(RuntimeError):
@@ -55,6 +62,20 @@ def mask_account_name(account_name: str) -> str:
     return "*" * (len(value) - 4) + value[-4:]
 
 
+def validate_terminal_path(path: str) -> str:
+    value = path.strip()
+    if not value:
+        raise MT5CollectorError("Select a MetaTrader 5 terminal first.")
+    terminal = Path(value).expanduser()
+    if terminal.name.lower() not in APPROVED_TERMINAL_NAMES:
+        raise MT5CollectorError(
+            "Select the MetaTrader 5 terminal executable, such as terminal64.exe."
+        )
+    if not terminal.is_file():
+        raise MT5CollectorError("The selected MetaTrader 5 terminal file was not found.")
+    return str(terminal.resolve())
+
+
 def validate_mt5_runtime(mt5: Any) -> None:
     missing = [name for name in REQUIRED_MT5_CALLS if not callable(getattr(mt5, name, None))]
     if missing:
@@ -74,10 +95,19 @@ def load_mt5() -> Any:
 
 
 def initialize_mt5(mt5: Any, terminal_path: str | None = None) -> None:
-    initialized = mt5.initialize(terminal_path) if terminal_path else mt5.initialize()
-    if not initialized:
-        error = mt5.last_error()
-        raise MT5CollectorError(f"MT5 initialize failed: {error}")
+    selected_path = validate_terminal_path(terminal_path) if terminal_path else None
+    initialized = mt5.initialize(selected_path) if selected_path else mt5.initialize()
+    if initialized:
+        return
+    error = mt5.last_error()
+    code = error[0] if isinstance(error, tuple) and error else None
+    if code == -6:
+        raise MT5CollectorError(
+            "The selected MT5 terminal is not authorized. Keep that terminal open, "
+            "log into the intended broker account inside MetaTrader 5, then try again. "
+            "Cakrawala does not need your broker password."
+        )
+    raise MT5CollectorError(f"MT5 initialize failed: {error}")
 
 
 def build_payload(mt5: Any, history_days: int = 120) -> dict[str, Any]:
