@@ -106,6 +106,11 @@ position details, or deal history, and it does not upload private data. If MT5 r
 authorization failure, return to the selected terminal, verify the intended account is
 logged in, then repeat the dry run.
 
+If the collector reports a connection timeout, open the exact broker terminal selected in
+the command. Finish any update, first-run screen, or login dialog and wait until the broker
+connection is active before retrying. When several MT5 installations are present, do not
+assume the generic terminal and the broker-branded terminal share the same saved session.
+
 After verifying the counts locally, run the collector without `--dry-run` to upload the normalized snapshot.
 
 ### Sync endpoint safeguards

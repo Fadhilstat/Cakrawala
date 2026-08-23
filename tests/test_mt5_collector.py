@@ -100,6 +100,15 @@ def test_initialize_mt5_explains_authorization_failure(tmp_path: Path) -> None:
         initialize_mt5(mt5, str(terminal))
 
 
+def test_initialize_mt5_explains_ipc_timeout(tmp_path: Path) -> None:
+    terminal = tmp_path / "terminal64.exe"
+    terminal.write_bytes(b"test")
+    mt5 = FakeInitializeMT5(False, (-10005, "IPC timeout"))
+
+    with pytest.raises(MT5CollectorError, match="finish any update or first-run dialog"):
+        initialize_mt5(mt5, str(terminal))
+
+
 class FakeMT5:
     def account_info(self) -> SimpleNamespace:
         return SimpleNamespace(
@@ -140,3 +149,4 @@ def test_build_payload_reads_account_and_positions_without_execution_calls() -> 
     assert len(payload["positions"]) == 1
     assert payload["positions"][0]["symbol"] == "EURUSD"
     assert payload["deals"] == []
+

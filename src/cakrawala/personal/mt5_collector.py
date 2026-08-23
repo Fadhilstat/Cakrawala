@@ -33,6 +33,8 @@ APPROVED_TERMINAL_NAMES = {
     "metatrader.exe",
     "metatrader64.exe",
 }
+AUTHORIZATION_ERROR_CODE = -6
+IPC_TIMEOUT_ERROR_CODE = -10005
 
 
 class MT5CollectorError(RuntimeError):
@@ -101,11 +103,18 @@ def initialize_mt5(mt5: Any, terminal_path: str | None = None) -> None:
         return
     error = mt5.last_error()
     code = error[0] if isinstance(error, tuple) and error else None
-    if code == -6:
+    if code == AUTHORIZATION_ERROR_CODE:
         raise MT5CollectorError(
             "The selected MT5 terminal is not authorized. Keep that terminal open, "
             "log into the intended broker account inside MetaTrader 5, then try again. "
             "Cakrawala does not need your broker password."
+        )
+    if code == IPC_TIMEOUT_ERROR_CODE:
+        raise MT5CollectorError(
+            "The selected MT5 terminal did not answer before the connection timeout. "
+            "Open that exact terminal, finish any update or first-run dialog, confirm "
+            "the broker account is connected, then try again. If several MT5 terminals "
+            "are open, keep the intended broker terminal selected."
         )
     raise MT5CollectorError(f"MT5 initialize failed: {error}")
 
@@ -196,3 +205,4 @@ def post_payload(
     if not isinstance(result, dict):
         raise MT5CollectorError("Sync endpoint returned an unexpected response.")
     return result
+
