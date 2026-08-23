@@ -64,7 +64,10 @@ def load_model_health(*, today: date | None = None) -> ModelHealthSummary:
             latest = None
             stale = False
             state = "BASELINE_ONLY"
-            message = "No promoted model is assigned. Deterministic evidence remains the decision baseline."
+            message = (
+                "No promoted model is assigned. Deterministic evidence remains "
+                "the decision baseline."
+            )
 
         output.append(
             ModelRoleHealth(
