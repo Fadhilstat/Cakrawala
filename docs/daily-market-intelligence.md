@@ -38,6 +38,8 @@ ECB reference rates remain the preferred zero-cost official price context for ma
 
 A directional FX label therefore means that completed-price momentum is aligned and no deterministic context gate has vetoed it. It still does not mean that broker spread, liquidity, slippage, session conditions, or account-level risk are acceptable. Those checks remain part of the manual owner decision.
 
+Each FX row exposes a compact decision path beside the final state. The path records the base completed-price state, official event-calendar status, macro alignment, model context, and final state. This keeps a directional label auditable and makes it clear when the result is baseline-only, research-only, production-backed, or unavailable. The model context remains informational until an eligible promoted model is explicitly wired into a deterministic gate.
+
 Official references:
 
 - `https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html`
@@ -130,3 +132,4 @@ The repository schedules the BTC direction baseline and the FX foundation-model 
 Daily market output should include the evidence date, source, directional state, short rationale, invalidation condition, and model-role status. A missing official event calendar makes the FX state `INSUFFICIENT`. Nearby scheduled event risk or a material macro conflict makes the directional state `WAIT`. Stale or unavailable bounded macro evidence is treated as missing context rather than invented evidence.
 
 AI may summarize or challenge the evidence, but it cannot override deterministic freshness, authorization, source-quality, model-health, event-risk, or private risk gates. No daily label places, modifies, or closes a broker order.
+

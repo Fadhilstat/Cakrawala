@@ -17,11 +17,13 @@ from cakrawala.intelligence.economic_calendar_evidence import (
     macro_context_for_pair,
 )
 from cakrawala.intelligence.market_brief import (
+    DecisionTrace,
     MarketAssessment,
     MarketBias,
     apply_fx_context_gates,
     assess_change_windows,
     assess_daily_prices,
+    build_fx_decision_trace,
 )
 from cakrawala.models.health import load_model_health
 
@@ -65,7 +67,11 @@ def _tone(bias: MarketBias) -> str:
     }[bias]
 
 
-def _assessment_row(item: MarketAssessment, source: str) -> str:
+def _assessment_row(
+    item: MarketAssessment,
+    source: str,
+    trace: DecisionTrace | None = None,
+) -> str:
     as_of = item.as_of.isoformat() if item.as_of else "N/A"
     rationale = " ".join(item.rationale)
     return "".join(
@@ -78,6 +84,7 @@ def _assessment_row(item: MarketAssessment, source: str) -> str:
             f"<td>{escape(_pct(item.change_20d_pct))}</td>",
             f"<td>{escape(as_of)}</td>",
             f"<td>{escape(source)}</td>",
+            f"<td>{escape(trace.summary() if trace else 'Price evidence only')}</td>",
             f"<td>{escape(rationale)}</td>",
             f"<td>{escape(item.invalidation)}</td>",
             "</tr>",
@@ -119,9 +126,14 @@ def _fx_rows(errors: list[str]) -> list[str]:
 
     event_calendar_available, event_risk = _event_gate(errors)
     calendar_snapshot = _calendar_snapshot(errors)
+    try:
+        model_context = load_model_health().decision_support_state
+    except Exception as exc:
+        errors.append(f"Model context unavailable: {type(exc).__name__}")
+        model_context = "UNAVAILABLE"
     rows: list[str] = []
     for snapshot in result.data:
-        assessment = assess_change_windows(
+        base_assessment = assess_change_windows(
             snapshot.pair,
             as_of=snapshot.as_of,
             change_1d_pct=snapshot.change_1d_pct,
@@ -135,15 +147,24 @@ def _fx_rows(errors: list[str]) -> list[str]:
                 calendar_snapshot,
             ).alignment
         assessment = apply_fx_context_gates(
+            base_assessment,
+            event_calendar_available=event_calendar_available,
+            event_risk=event_risk,
+            macro_alignment=macro_alignment,
+        )
+        trace = build_fx_decision_trace(
+            base_assessment,
             assessment,
             event_calendar_available=event_calendar_available,
             event_risk=event_risk,
             macro_alignment=macro_alignment,
+            model_context=model_context,
         )
         rows.append(
             _assessment_row(
                 assessment,
                 "ECB reference rates + BLS event gate + macro evidence",
+                trace,
             )
         )
     return rows
@@ -187,7 +208,8 @@ def _table(rows: list[str]) -> str:
         [
             "<div class='table-wrap'><table><thead><tr>",
             "<th>Instrument</th><th>State</th><th>1D</th><th>5D</th><th>20D</th>",
-            "<th>As of</th><th>Source</th><th>Why</th><th>Invalidation</th>",
+            "<th>As of</th><th>Source</th><th>Decision path</th><th>Why</th>",
+            "<th>Invalidation</th>",
             "</tr></thead><tbody>",
             "".join(rows),
             "</tbody></table></div>",
@@ -266,7 +288,9 @@ th,td {
   border-bottom:1px solid var(--line); min-width:72px;
 }
 th { color:#aebdd1; position:sticky; top:0; background:var(--panel); }
-td:nth-child(8),td:nth-child(9) { min-width:280px; white-space:normal; line-height:1.45; }
+td:nth-child(8),td:nth-child(9),td:nth-child(10) {
+  min-width:280px; white-space:normal; line-height:1.45;
+}
 .positive { color:var(--green); font-weight:800; } .negative { color:var(--red); font-weight:800; }
 .neutral { color:var(--amber); font-weight:800; } .muted { color:var(--muted); }
 @media(max-width:760px){ .top{flex-direction:column;} main{width:min(100% - 20px,1500px);} }
@@ -305,7 +329,7 @@ def _page(display_name: str) -> str:
             "<p class='muted'>Official ECB reference rates provide the price context. The BLS ",
             "calendar is used as a fail-closed near-term event gate. Fresh bounded macro ",
             "surprise evidence may support or veto the directional state. ECB rates are not ",
-            "executable broker quotes.</p>",
+            "executable broker quotes. The Decision path keeps every gate visible.</p>",
             _table(fx_rows),
             "</div>",
             "<div class='panel'><h2>Equity watchlist</h2>",
@@ -336,3 +360,4 @@ def install_personal_market_route(server: Flask) -> None:
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["X-Frame-Options"] = "DENY"
         return response
+

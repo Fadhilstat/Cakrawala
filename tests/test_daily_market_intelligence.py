@@ -11,6 +11,7 @@ from cakrawala.intelligence.market_brief import (
     MarketBias,
     apply_fx_context_gates,
     assess_daily_prices,
+    build_fx_decision_trace,
 )
 
 
@@ -145,6 +146,64 @@ def test_fx_context_gate_keeps_supported_directional_bias() -> None:
     assert any("supports" in reason for reason in result.rationale)
 
 
+def test_fx_decision_trace_exposes_each_gate_without_claiming_model_support() -> None:
+    end = datetime(2026, 8, 21)
+    base = assess_daily_prices(
+        "EURUSD",
+        _series(100, [1] * 20, end=end),
+        today=end.date(),
+    )
+    final = apply_fx_context_gates(
+        base,
+        event_calendar_available=True,
+        event_risk=False,
+        macro_alignment="SUPPORTS_UP",
+    )
+
+    trace = build_fx_decision_trace(
+        base,
+        final,
+        event_calendar_available=True,
+        event_risk=False,
+        macro_alignment="SUPPORTS_UP",
+        model_context="BASELINE_ONLY",
+    )
+
+    assert trace.price_evidence == "BUY BIAS"
+    assert trace.event_risk == "CLEAR"
+    assert trace.macro_evidence == "SUPPORTS UP"
+    assert trace.model_context == "BASELINE ONLY"
+    assert trace.final_state == MarketBias.BUY_BIAS
+    assert trace.summary().endswith("Final: BUY BIAS")
+
+
+def test_fx_decision_trace_records_fail_closed_event_state() -> None:
+    end = datetime(2026, 8, 21)
+    base = assess_daily_prices(
+        "EURUSD",
+        _series(100, [1] * 20, end=end),
+        today=end.date(),
+    )
+    final = apply_fx_context_gates(
+        base,
+        event_calendar_available=False,
+        event_risk=False,
+        macro_alignment="NO_CONTEXT",
+    )
+
+    trace = build_fx_decision_trace(
+        base,
+        final,
+        event_calendar_available=False,
+        event_risk=False,
+        macro_alignment="NO_CONTEXT",
+        model_context="UNAVAILABLE",
+    )
+
+    assert trace.event_risk == "UNAVAILABLE"
+    assert trace.final_state == MarketBias.INSUFFICIENT
+
+
 def test_twelve_data_requires_server_side_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("TWELVE_DATA_API_KEY", raising=False)
     with pytest.raises(RuntimeError, match="TWELVE_DATA_API_KEY"):
@@ -242,3 +301,4 @@ def test_twelve_data_rejects_invalid_ohlc_payload(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(twelve_data, "get_json", fake_get_json)
     with pytest.raises(ValueError, match="internally inconsistent"):
         twelve_data.fetch_daily_equity_history("AAPL")
+

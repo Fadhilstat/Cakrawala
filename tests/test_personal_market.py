@@ -29,6 +29,7 @@ def test_personal_market_is_private_and_no_store(monkeypatch) -> None:
     response = client.get("/personal/market")
     assert response.status_code == 200
     assert b"Daily Market Brief" in response.data
+    assert b"Decision path" in response.data
     assert response.headers["Cache-Control"] == "no-store"
     assert response.headers["X-Robots-Tag"] == "noindex, nofollow"
     assert response.headers["Referrer-Policy"] == "no-referrer"
@@ -46,3 +47,4 @@ def test_equity_watchlist_is_bounded_and_deduplicated(monkeypatch) -> None:
         ("AAPL", "XNAS"),
         ("MSFT", "XNAS"),
     ]
+
