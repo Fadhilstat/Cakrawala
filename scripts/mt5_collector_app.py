@@ -7,9 +7,22 @@ import os
 import secrets
 import sys
 import threading
+from collections.abc import Callable
 from ctypes import wintypes
 from pathlib import Path
-from tkinter import BOTH, END, LEFT, RIGHT, Button, Frame, Label, Text, Tk, messagebox, simpledialog
+from tkinter import (
+    BOTH,
+    END,
+    LEFT,
+    RIGHT,
+    Button,
+    Frame,
+    Label,
+    Text,
+    Tk,
+    messagebox,
+    simpledialog,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -27,7 +40,6 @@ from cakrawala.personal.mt5_collector import (  # noqa: E402
 APP_TITLE = "Cakrawala MT5 Collector"
 APP_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Cakrawala"
 CONFIG_PATH = APP_DIR / "mt5_collector.json"
-DPAPI_DESCRIPTION = "Cakrawala MT5 Collector token"
 
 
 class DATA_BLOB(ctypes.Structure):
@@ -37,7 +49,7 @@ class DATA_BLOB(ctypes.Structure):
     ]
 
 
-def _blob_from_bytes(data: bytes) -> tuple[DATA_BLOB, ctypes.Array[ctypes.c_char]]:
+def _blob_from_bytes(data: bytes) -> tuple[DATA_BLOB, object]:
     buffer = ctypes.create_string_buffer(data)
     blob = DATA_BLOB(
         len(data),
@@ -50,13 +62,12 @@ def _protect_secret(value: str) -> str:
     if os.name != "nt":
         raise RuntimeError("Windows secret protection is required.")
     source, source_buffer = _blob_from_bytes(value.encode("utf-8"))
-    del source_buffer
     output = DATA_BLOB()
     crypt32 = ctypes.windll.crypt32
     kernel32 = ctypes.windll.kernel32
     success = crypt32.CryptProtectData(
         ctypes.byref(source),
-        DPAPI_DESCRIPTION,
+        None,
         None,
         None,
         None,
@@ -69,6 +80,7 @@ def _protect_secret(value: str) -> str:
         protected = ctypes.string_at(output.pbData, output.cbData)
         return base64.b64encode(protected).decode("ascii")
     finally:
+        del source_buffer
         kernel32.LocalFree(output.pbData)
 
 
@@ -77,7 +89,6 @@ def _unprotect_secret(encoded: str) -> str:
         raise RuntimeError("Windows secret protection is required.")
     protected = base64.b64decode(encoded.encode("ascii"), validate=True)
     source, source_buffer = _blob_from_bytes(protected)
-    del source_buffer
     output = DATA_BLOB()
     crypt32 = ctypes.windll.crypt32
     kernel32 = ctypes.windll.kernel32
@@ -96,6 +107,7 @@ def _unprotect_secret(encoded: str) -> str:
         plain = ctypes.string_at(output.pbData, output.cbData)
         return plain.decode("utf-8")
     finally:
+        del source_buffer
         kernel32.LocalFree(output.pbData)
 
 
@@ -206,7 +218,9 @@ class CollectorApp:
         )
 
     def _initial_status(self) -> str:
-        return "Private sync token: configured" if _load_token() else "Private sync token: not configured"
+        if _load_token():
+            return "Private sync token: configured"
+        return "Private sync token: not configured"
 
     def _write(self, text: str) -> None:
         self.log.insert(END, text)
@@ -219,7 +233,7 @@ class CollectorApp:
         if label:
             self.status.config(text=label)
 
-    def _run_background(self, task: callable, label: str) -> None:
+    def _run_background(self, task: Callable[[], None], label: str) -> None:
         self._set_busy(True, label)
 
         def runner() -> None:
@@ -273,7 +287,10 @@ class CollectorApp:
             token = _new_token()
             generated = True
         if len(token) < 32:
-            messagebox.showerror(APP_TITLE, "Use a private sync token with at least 32 characters.")
+            messagebox.showerror(
+                APP_TITLE,
+                "Use a private sync token with at least 32 characters.",
+            )
             return
 
         try:
