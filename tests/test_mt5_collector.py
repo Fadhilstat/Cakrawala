@@ -9,6 +9,7 @@ from cakrawala.personal.mt5_collector import (
     MT5CollectorError,
     build_payload,
     mask_account_name,
+    validate_mt5_runtime,
     validate_sync_url,
 )
 
@@ -32,6 +33,21 @@ def test_mask_account_name_keeps_only_last_four_characters() -> None:
     assert mask_account_name("12345678") == "****5678"
     assert mask_account_name("1234") == "****"
     assert mask_account_name("") == "account"
+
+
+def test_validate_mt5_runtime_requires_read_only_calls() -> None:
+    valid = SimpleNamespace(
+        initialize=lambda: True,
+        shutdown=lambda: None,
+        account_info=lambda: None,
+        positions_get=lambda: (),
+        history_deals_get=lambda *_args: (),
+    )
+    validate_mt5_runtime(valid)
+
+    incomplete = SimpleNamespace(initialize=lambda: True)
+    with pytest.raises(MT5CollectorError, match="runtime is incomplete"):
+        validate_mt5_runtime(incomplete)
 
 
 class FakeMT5:
