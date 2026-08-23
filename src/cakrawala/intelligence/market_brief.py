@@ -31,6 +31,60 @@ class MarketAssessment:
     invalidation: str
 
 
+@dataclass(frozen=True)
+class DecisionTrace:
+    price_evidence: str
+    event_risk: str
+    macro_evidence: str
+    model_context: str
+    final_state: MarketBias
+
+    def summary(self) -> str:
+        return " | ".join(
+            (
+                f"Price: {self.price_evidence}",
+                f"Event: {self.event_risk}",
+                f"Macro: {self.macro_evidence}",
+                f"Model: {self.model_context}",
+                f"Final: {self.final_state.value}",
+            )
+        )
+
+
+def build_fx_decision_trace(
+    base_assessment: MarketAssessment,
+    final_assessment: MarketAssessment,
+    *,
+    event_calendar_available: bool,
+    event_risk: bool,
+    macro_alignment: str,
+    model_context: str,
+) -> DecisionTrace:
+    normalized_macro = macro_alignment.strip().upper()
+    allowed_macro = {"SUPPORTS_UP", "SUPPORTS_DOWN", "MIXED", "NO_CONTEXT"}
+    if normalized_macro not in allowed_macro:
+        raise ValueError("macro_alignment is not supported")
+
+    normalized_model = model_context.strip().upper()
+    if not normalized_model:
+        raise ValueError("model_context is required")
+
+    if not event_calendar_available:
+        event_state = "UNAVAILABLE"
+    elif event_risk:
+        event_state = "NEAR EVENT"
+    else:
+        event_state = "CLEAR"
+
+    return DecisionTrace(
+        price_evidence=base_assessment.bias.value,
+        event_risk=event_state,
+        macro_evidence=normalized_macro.replace("_", " "),
+        model_context=normalized_model.replace("_", " "),
+        final_state=final_assessment.bias,
+    )
+
+
 def _change(closes: list[float], periods: int) -> float | None:
     if len(closes) <= periods:
         return None
@@ -282,3 +336,4 @@ def assess_daily_prices(
         maximum_age_days=maximum_age_days,
         deadband_pct=deadband_pct,
     )
+
