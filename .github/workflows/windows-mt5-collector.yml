@@ -1,0 +1,66 @@
+name: Windows MT5 Collector
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/windows-mt5-collector.yml'
+      - 'scripts/mt5_collector_app.py'
+      - 'src/cakrawala/personal/mt5_collector.py'
+      - 'src/cakrawala/personal/mt5_normalize.py'
+      - 'tests/test_mt5_collector.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/windows-mt5-collector.yml'
+      - 'scripts/mt5_collector_app.py'
+      - 'src/cakrawala/personal/mt5_collector.py'
+      - 'src/cakrawala/personal/mt5_normalize.py'
+      - 'tests/test_mt5_collector.py'
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-collector:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install collector build dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install MetaTrader5==5.0.6090 PyInstaller==6.21.0
+      - name: Run collector tests
+        shell: pwsh
+        run: python -m pytest tests/test_mt5_collector.py -q
+      - name: Build one-file collector
+        shell: pwsh
+        run: |
+          python -m PyInstaller `
+            --noconfirm `
+            --clean `
+            --onefile `
+            --windowed `
+            --name Cakrawala-MT5-Collector `
+            --paths src `
+            --collect-all MetaTrader5 `
+            scripts/mt5_collector_app.py
+      - name: Create checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash dist/Cakrawala-MT5-Collector.exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  Cakrawala-MT5-Collector.exe" | Out-File -Encoding ascii dist/Cakrawala-MT5-Collector.sha256
+      - name: Upload portable collector
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cakrawala-MT5-Collector-Windows
+          path: |
+            dist/Cakrawala-MT5-Collector.exe
+            dist/Cakrawala-MT5-Collector.sha256
+          if-no-files-found: error
+          retention-days: 30
