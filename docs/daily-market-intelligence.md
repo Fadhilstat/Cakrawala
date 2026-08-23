@@ -24,6 +24,14 @@ For FX, that base state then passes through two additional context gates. Cakraw
 
 This layer remains intentionally transparent. It gives the owner a consistent baseline that can challenge more complex model or AI narratives instead of being replaced by them.
 
+## Model health visibility
+
+The Daily Market Brief also shows the current model-role state from `configs/models.yaml`. Each production role is labelled as `PRODUCTION`, `RESEARCH_ONLY`, or `BASELINE_ONLY`, together with the assigned model, latest verified run when available, and freshness status.
+
+The current configuration has no promoted model assigned to expected return, direction probability, or volatility. That means the daily board is explicitly baseline-only even when a deterministic BUY BIAS or SELL BIAS appears. Research models do not silently strengthen a daily label unless a separate promotion decision assigns them to a production role.
+
+A promoted model is considered stale when its latest verified run is more than eight days old or cannot be parsed. A baseline-only role is not marked stale because no production model is being relied upon. Missing or malformed model configuration fails visibly in the owner dashboard rather than being hidden.
+
 ## FX source boundary
 
 ECB reference rates remain the preferred zero-cost official price context for major FX pairs. They are reference rates, not executable broker quotes. The official BLS release calendar is used as a near-term event-risk gate. The bounded macro snapshot is secondary context and is excluded when stale or unavailable.
@@ -92,6 +100,8 @@ fresh bounded macro support or conflict
         |
 final BUY BIAS / SELL BIAS / WAIT / INSUFFICIENT
         |
+model-role health visibility
+        |
 broker context and account-risk review
         |
 manual owner decision
@@ -117,6 +127,6 @@ The repository schedules the BTC direction baseline and the FX foundation-model 
 
 ## Analysis boundaries
 
-Daily market output should include the evidence date, source, directional state, short rationale, and invalidation condition. A missing official event calendar makes the FX state `INSUFFICIENT`. Nearby scheduled event risk or a material macro conflict makes the directional state `WAIT`. Stale or unavailable bounded macro evidence is treated as missing context rather than invented evidence.
+Daily market output should include the evidence date, source, directional state, short rationale, invalidation condition, and model-role status. A missing official event calendar makes the FX state `INSUFFICIENT`. Nearby scheduled event risk or a material macro conflict makes the directional state `WAIT`. Stale or unavailable bounded macro evidence is treated as missing context rather than invented evidence.
 
 AI may summarize or challenge the evidence, but it cannot override deterministic freshness, authorization, source-quality, model-health, event-risk, or private risk gates. No daily label places, modifies, or closes a broker order.
