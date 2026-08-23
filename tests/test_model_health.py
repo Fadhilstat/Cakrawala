@@ -11,6 +11,7 @@ def test_current_configuration_is_explicitly_baseline_only() -> None:
     assert states["direction_probability"] == "BASELINE_ONLY"
     assert states["volatility"] == "BASELINE_ONLY"
     assert summary.production_ready is False
+    assert summary.decision_support_state == "BASELINE_ONLY"
 
 
 def test_baseline_only_roles_are_not_marked_stale() -> None:
@@ -19,3 +20,4 @@ def test_baseline_only_roles_are_not_marked_stale() -> None:
     assert summary.roles
     assert all(item.stale is False for item in summary.roles)
     assert all(item.model_name is None for item in summary.roles)
+
