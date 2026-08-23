@@ -63,10 +63,28 @@ Official MetaTrader 5 Python documentation used for this integration was confirm
 - https://www.mql5.com/en/docs/python_metatrader5/mt5accountinfo_py
 - https://www.mql5.com/en/docs/python_metatrader5/mt5positionsget_py
 - https://www.mql5.com/en/docs/python_metatrader5/mt5historydealsget_py
+- https://pypi.org/project/MetaTrader5/
+
+The documentation and the official PyPI package page were confirmed accessible again on
+2026-08-23. The local package is pinned through the `mt5` optional dependency so the
+collector build and the local connection test use the same reviewed runtime version.
 
 ### Local setup
 
-Install the `MetaTrader5` package only on the Windows machine where the MT5 terminal is available. It is intentionally not a Vercel runtime dependency.
+Install the `MetaTrader5` package only on the Windows machine where the MT5 terminal is
+available. It is intentionally not a Vercel runtime dependency.
+
+Create an isolated environment and install the reviewed MT5 dependency:
+
+```text
+python -m venv .venv-mt5
+.venv-mt5\Scripts\python.exe -m pip install ".[mt5]"
+```
+
+Keep the intended broker terminal open and log in inside MetaTrader 5. Cakrawala connects
+to that existing terminal session and does not need the broker password. Do not place an
+account password in a command, environment variable, project file, screenshot, or support
+message.
 
 Set these variables on the collector machine:
 
@@ -80,8 +98,13 @@ Set the corresponding token only in the private Vercel environment as `PERSONAL_
 A safe first run is:
 
 ```text
-python scripts/mt5_readonly_sync.py --dry-run
+.venv-mt5\Scripts\python.exe scripts\mt5_readonly_sync.py --dry-run --terminal-path "C:\Program Files\MetaTrader 5\terminal64.exe"
 ```
+
+The dry run reports only record counts. It does not print the account number, balance,
+position details, or deal history, and it does not upload private data. If MT5 reports an
+authorization failure, return to the selected terminal, verify the intended account is
+logged in, then repeat the dry run.
 
 After verifying the counts locally, run the collector without `--dry-run` to upload the normalized snapshot.
 
@@ -149,3 +172,4 @@ Cakrawala does not place forex orders, connect the Vercel request path directly 
 ## Cost boundary
 
 The implemented market-evidence layer uses public official data without a paid market-data API. The personal Vercel project currently runs on the Vercel Hobby plan. The MT5 collector uses the existing local terminal and standard Python tooling. Private storage or future broker adapters are accepted into the zero-cost MVP only when they have a genuinely free operating path without a mandatory paid upgrade.
+
