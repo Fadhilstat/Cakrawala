@@ -1,4 +1,5 @@
 .venv/
+.venv-mt5/
 __pycache__/
 .pytest_cache/
 .ruff_cache/
@@ -10,3 +11,4 @@ artifacts/
 data/raw/
 data/quarantine/
 .DS_Store
+
