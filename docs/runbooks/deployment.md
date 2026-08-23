@@ -15,7 +15,9 @@ Free-tier policies and provider terms can change. Recheck them before a later mi
 
 Public Mode should open without private credentials.
 
-1. Deploy `main` with `app/streamlit_app.py` as the entrypoint.
+1. Deploy `main` with `app/streamlit_app.py` as the entrypoint. A root
+   `streamlit_app.py` compatibility entrypoint is also public-only, but the configured path should
+   remain explicit in Streamlit Community Cloud.
 2. Use the supported Python version from the repository configuration.
 3. Run `python scripts/preflight_deployment.py --mode public` in a matching environment.
 4. Run `python scripts/check_sources.py` from the target environment.
@@ -178,3 +180,4 @@ A release is not considered complete until the deployed instances pass these che
 - Runtime logs show no unexplained application errors after the complete browser walkthrough.
 
 Only after these checks pass should the final production links and screenshots be used in the CV, LinkedIn, or public portfolio.
+
