@@ -280,7 +280,8 @@ class CollectorApp:
         self.log = Text(root, height=14, wrap="word", font=("Consolas", 10))
         self.log.pack(fill=BOTH, expand=True, padx=20, pady=(0, 20))
         self._write(
-            "Select the terminal64.exe for the broker terminal that is already open and logged in.\n"
+            "Select the terminal64.exe for the broker terminal that is already "
+            "open and logged in.\n"
         )
 
     def _initial_status(self) -> str:
