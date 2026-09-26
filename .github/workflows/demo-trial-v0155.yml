@@ -50,8 +50,11 @@ jobs:
         run: |
           test -n "$VERCEL_TOKEN" || { echo "VERCEL_TOKEN is unavailable"; exit 1; }
 
-      - name: Pull preview project settings
-        run: npx --yes vercel@59.3.0 pull --yes --environment=preview --token "$VERCEL_TOKEN" --cwd trial
+      - name: Bind owner terminal project
+        shell: bash
+        run: |
+          mkdir -p trial/.vercel
+          printf '{"orgId":"%s","projectId":"%s"}\n' "$VERCEL_ORG_ID" "$VERCEL_PROJECT_ID" > trial/.vercel/project.json
 
       - name: Deploy pinned preview
         id: deploy
