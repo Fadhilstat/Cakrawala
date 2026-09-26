@@ -14,8 +14,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  VERCEL_ORG_ID: team_EaaiSPOJWbSimQAe1AzNVd39
+  VERCEL_PROJECT_ID: prj_3ih7VfiUB36tXvx0j5R9YQkfD6JF
   VERCEL_SCOPE: fadhil-9768s-projects
-  TRIAL_PROJECT: cakrawala-demo-trial-v0155
 
 jobs:
   deploy-trial:
@@ -50,20 +51,21 @@ jobs:
         run: |
           test -n "$VERCEL_TOKEN" || { echo "VERCEL_TOKEN is unavailable"; exit 1; }
 
-      - name: Ensure isolated trial project
+      - name: Build static Vercel output
         shell: bash
         run: |
-          if ! npx --yes vercel@59.3.0 project inspect "$TRIAL_PROJECT" --scope "$VERCEL_SCOPE" --token "$VERCEL_TOKEN" >/dev/null 2>&1; then
-            npx --yes vercel@59.3.0 project add "$TRIAL_PROJECT" --scope "$VERCEL_SCOPE" --token "$VERCEL_TOKEN"
-          fi
           rm -rf trial/.vercel
-          npx --yes vercel@59.3.0 link --yes --project "$TRIAL_PROJECT" --scope "$VERCEL_SCOPE" --token "$VERCEL_TOKEN" --cwd trial
+          mkdir -p trial/.vercel/output/static
+          cp trial/index.html trial/.vercel/output/static/index.html
+          cp trial/manifest.json trial/.vercel/output/static/manifest.json
+          printf '{"version":3}\n' > trial/.vercel/output/config.json
+          printf '{"orgId":"%s","projectId":"%s"}\n' "$VERCEL_ORG_ID" "$VERCEL_PROJECT_ID" > trial/.vercel/project.json
 
-      - name: Deploy pinned preview
+      - name: Deploy pinned prebuilt preview
         id: deploy
         shell: bash
         run: |
-          url="$(npx --yes vercel@59.3.0 deploy --yes --token "$VERCEL_TOKEN" --scope "$VERCEL_SCOPE" --cwd trial)"
+          url="$(npx --yes vercel@59.3.0 deploy --prebuilt --yes --token "$VERCEL_TOKEN" --scope "$VERCEL_SCOPE" --cwd trial)"
           test -n "$url"
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Demo trial preview: $url"
