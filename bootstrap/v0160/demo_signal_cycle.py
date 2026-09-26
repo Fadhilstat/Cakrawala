@@ -87,6 +87,13 @@ def main() -> int:
     if freshness != "FRESH":
         write_state(status="CAMPAIGN_NOT_FRESH", campaign_id=campaign_id, data_freshness=freshness)
         return 0
+    cutoff_text = str(payload.get("campaign", {}).get("data_cutoff_utc") or "")
+    cutoff = datetime.fromisoformat(cutoff_text.replace("Z", "+00:00"))
+    max_age = float(json.loads((SOURCE / "config" / "risk_policy.json").read_text(encoding="utf-8"))["max_quote_age_seconds"])
+    wallclock_age = max(0.0, (now_utc() - cutoff.astimezone(timezone.utc)).total_seconds())
+    if wallclock_age > max_age:
+        write_state(status="CAMPAIGN_WALLCLOCK_STALE", campaign_id=campaign_id, wallclock_age_seconds=round(wallclock_age, 3), max_age_seconds=max_age)
+        return 0
     demo_state = payload.get("demo_trial_execution", {})
     if demo_state.get("auto_trade_scheduler_enabled") is not True or demo_state.get("real_money_enabled") is not False:
         write_state(status="AUTOTRADE_POLICY_BLOCKED", campaign_id=campaign_id)
