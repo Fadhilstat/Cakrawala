@@ -1,0 +1,68 @@
+name: Cakrawala demo trial preview
+
+on:
+  push:
+    branches:
+      - demo-trial-v0155-69a68da
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cakrawala-demo-trial-v0155
+  cancel-in-progress: false
+
+env:
+  VERCEL_ORG_ID: team_EaaiSPOJWbSimQAe1AzNVd39
+  VERCEL_PROJECT_ID: prj_0cJuRO7lUvOVypMyOVeQMIkXJw8K
+
+jobs:
+  deploy-trial:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Verify exact trial identity
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+
+          manifest = json.loads(Path("trial/manifest.json").read_text())
+          html = Path("trial/index.html").read_bytes()
+          actual = hashlib.sha256(html).hexdigest()
+          if manifest["source_head"] != "69a68dae52f25e3f87f6083a6de72dd321d4fa02":
+              raise SystemExit("Unexpected Cakrawala source head")
+          if actual != manifest["index_sha256"]:
+              raise SystemExit("Trial HTML hash mismatch")
+          if manifest["real_money_enabled"] or manifest["broker_mutation_enabled"]:
+              raise SystemExit("Trial artifact violates demo-only boundary")
+          print("Exact v0.15.5 demo trial identity verified")
+          PY
+
+      - name: Check deployment credential
+        shell: bash
+        run: |
+          test -n "$VERCEL_TOKEN" || { echo "VERCEL_TOKEN is unavailable"; exit 1; }
+
+      - name: Pull preview project settings
+        run: npx --yes vercel@59.3.0 pull --yes --environment=preview --token "$VERCEL_TOKEN" --cwd trial
+
+      - name: Deploy pinned preview
+        id: deploy
+        shell: bash
+        run: |
+          url="$(npx --yes vercel@59.3.0 deploy --yes --token "$VERCEL_TOKEN" --cwd trial)"
+          test -n "$url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Demo trial preview: $url"
+
+      - name: Verify preview is ready
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
+        run: npx --yes vercel@59.3.0 inspect "$DEPLOYMENT_URL" --wait --token "$VERCEL_TOKEN"
