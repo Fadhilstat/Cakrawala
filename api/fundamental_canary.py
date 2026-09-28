@@ -1,7 +1,7 @@
 import hashlib
+from http.server import BaseHTTPRequestHandler
 import json
 import os
-from http.server import BaseHTTPRequestHandler
 
 
 SOURCE_PLANE = "GITHUB_NATIVE"
