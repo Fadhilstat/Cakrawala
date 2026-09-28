@@ -1,7 +1,6 @@
 import hashlib
 import json
 import os
-
 from http.server import BaseHTTPRequestHandler
 
 
