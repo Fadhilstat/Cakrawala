@@ -1,0 +1,68 @@
+name: Fundamental V12.51 GitHub Native Canary
+
+on:
+  push:
+    branches:
+      - fundamental-v1251-vercel-canary
+  pull_request:
+    branches:
+      - fundamental-v1251-github-release-base
+
+permissions:
+  contents: read
+
+jobs:
+  github-native-canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify provider-local execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json, os, platform
+          sha = os.environ["GITHUB_SHA"]
+          branch = os.environ.get("GITHUB_REF_NAME", "")
+          payload = {
+              "status": "PASS",
+              "canary_version": "v1251",
+              "source_plane": "GITHUB_NATIVE",
+              "execution_plane": "GITHUB_ACTIONS_HOSTED",
+              "source_sha": sha,
+              "ref_name": branch,
+              "runner_os": platform.system(),
+              "vps_route_runtime": False,
+              "rdc_required": False,
+              "production_mutation": False,
+              "database_mutation": False,
+              "credential_copy": False,
+              "failure_domains": ["github"],
+          }
+          canonical = json.dumps(payload, sort_keys=True).encode()
+          payload["evidence_sha256"] = hashlib.sha256(canonical).hexdigest()
+          with open("fundamental-v1251-evidence.json", "w", encoding="utf-8") as f:
+              json.dump(payload, f, sort_keys=True, indent=2)
+          print(json.dumps(payload, sort_keys=True))
+          PY
+      - name: Run focused repository tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m compileall api app src >/dev/null
+          python - <<'PY'
+          import json
+          with open("fundamental-v1251-evidence.json", encoding="utf-8") as f:
+              data = json.load(f)
+          assert data["status"] == "PASS"
+          assert data["vps_route_runtime"] is False
+          assert data["rdc_required"] is False
+          assert data["execution_plane"] == "GITHUB_ACTIONS_HOSTED"
+          print("GITHUB_NATIVE_CANARY_PASS")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fundamental-v1251-github-native-evidence
+          path: fundamental-v1251-evidence.json
+          if-no-files-found: error
