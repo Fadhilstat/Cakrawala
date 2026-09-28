@@ -1,0 +1,14 @@
+{
+  "approval_binding_sha256": "253421a2f29eec3f025b9090c7e73dd45653879e13239f90b78e188501cf5512",
+  "approval_revalidation_required": true,
+  "database_mutation": false,
+  "fallback_candidate": "GITHUB_NATIVE_STANDALONE",
+  "fault_injection": "PRIMARY_UNAVAILABLE_BEFORE_MUTATION",
+  "operation_id": "v1253-cross-domain-failover-20260928-01",
+  "primary_candidate": "GITLAB_NATIVE_PLUS_RAILWAY_LOCAL",
+  "production_mutation": false,
+  "rdc_required": false,
+  "schema_version": 1,
+  "source_identity_sha256": "6b4209c6e25c978d349cba483e30949c36a4c6282594d32aeabcc9fcba872d70",
+  "source_revalidation_required": true
+}
