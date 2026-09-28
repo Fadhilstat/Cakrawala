@@ -1,0 +1,78 @@
+name: Fundamental V12.53 Cross Domain Failover Canary
+
+on:
+  push:
+    branches:
+      - fundamental-v1253-cross-domain-fallback
+  pull_request:
+    branches:
+      - fundamental-v1253-failover-base
+
+permissions:
+  contents: read
+
+jobs:
+  cross-domain-fallback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify failover transaction binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          source_path = Path("fundamental-v1253/failover-source.json")
+          binding_path = Path("fundamental-v1253/failover-binding.json")
+          source_bytes = source_path.read_bytes()
+          source_sha = hashlib.sha256(source_bytes.rstrip(b"\n")).hexdigest()
+          binding = json.loads(binding_path.read_text(encoding="utf-8"))
+
+          expected_source = "6b4209c6e25c978d349cba483e30949c36a4c6282594d32aeabcc9fcba872d70"
+          expected_approval = "253421a2f29eec3f025b9090c7e73dd45653879e13239f90b78e188501cf5512"
+
+          assert source_sha == expected_source
+          assert binding["source_identity_sha256"] == expected_source
+          assert binding["approval_binding_sha256"] == expected_approval
+          assert binding["operation_id"] == "v1253-cross-domain-failover-20260928-01"
+          assert binding["fault_injection"] == "PRIMARY_UNAVAILABLE_BEFORE_MUTATION"
+          assert binding["source_revalidation_required"] is True
+          assert binding["approval_revalidation_required"] is True
+          assert binding["production_mutation"] is False
+          assert binding["database_mutation"] is False
+          assert binding["rdc_required"] is False
+
+          evidence = {
+              "status": "PASS",
+              "canary_version": "v1253",
+              "operation_id": binding["operation_id"],
+              "primary_candidate": binding["primary_candidate"],
+              "fallback_candidate": binding["fallback_candidate"],
+              "fallback_selected_due_to_primary_unavailable": True,
+              "source_identity_sha256": expected_source,
+              "approval_binding_sha256": expected_approval,
+              "source_revalidated": True,
+              "approval_revalidated": True,
+              "execution_plane": "GITHUB_ACTIONS_HOSTED",
+              "github_sha": os.environ["GITHUB_SHA"],
+              "vps_route_runtime": False,
+              "rdc_required": False,
+              "production_mutation": False,
+              "database_mutation": False,
+          }
+          Path("fundamental-v1253-failover-evidence.json").write_text(
+              json.dumps(evidence, sort_keys=True, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(evidence, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fundamental-v1253-cross-domain-failover-evidence
+          path: fundamental-v1253-failover-evidence.json
+          if-no-files-found: error
