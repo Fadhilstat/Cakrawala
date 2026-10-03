@@ -8,6 +8,8 @@ ROOT_STREAMLIT_ENTRYPOINT = ROOT / "streamlit_app.py"
 PUBLIC_UI = ROOT / "src" / "cakrawala" / "terminal" / "enhanced_ui.py"
 LEGACY_UI_MODULE = ROOT / "src" / "cakrawala" / "terminal" / "ui.py"
 REMOVED_PERSONAL_UI = ROOT / "src" / "cakrawala" / "terminal" / "personal_ui.py"
+PUBLIC_STYLES = ROOT / "app" / "assets" / "public_terminal.css"
+PUBLIC_DATA = ROOT / "src" / "cakrawala" / "terminal" / "public_data.py"
 
 
 def test_streamlit_entrypoint_uses_public_ui() -> None:
@@ -40,4 +42,23 @@ def test_legacy_ui_run_delegates_to_public_terminal() -> None:
 
 def test_legacy_streamlit_personal_workspace_is_removed() -> None:
     assert not REMOVED_PERSONAL_UI.exists()
+
+
+def test_public_terminal_uses_responsive_corporate_shell() -> None:
+    source = PUBLIC_UI.read_text(encoding="utf-8")
+    styles = PUBLIC_STYLES.read_text(encoding="utf-8")
+
+    assert 'initial_sidebar_state="collapsed"' in source
+    assert "_WORKSPACE_LABELS" in source
+    assert "_render_workspace_header" in source
+    assert "System status and source diagnostics" in source
+    assert "@media (max-width: 720px)" in styles
+    assert "@media (prefers-reduced-motion: reduce)" in styles
+    assert ":focus-visible" in styles
+    assert ".evidence-strip" in styles
+
+
+def test_public_snapshot_caches_failure_state_between_workspace_changes() -> None:
+    source = PUBLIC_DATA.read_text(encoding="utf-8")
+    assert "public_snapshot = st.cache_data(ttl=300, show_spinner=False)" in source
 

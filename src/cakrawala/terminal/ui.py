@@ -26,45 +26,24 @@ def _percent(value: float | None, digits: int = 2) -> str:
 def _header() -> None:
     st.markdown(
         """
-        <style>
-        .block-container {
-            padding-top: 1.35rem;
-            padding-bottom: 3rem;
-            max-width: 1450px;
-        }
-        [data-testid="stMetric"] {
-            border: 1px solid rgba(220, 235, 224, 0.10);
-            border-radius: 12px;
-            padding: 14px 16px;
-            background: rgba(255, 255, 255, 0.015);
-        }
-        .terminal-kicker {
-            font-size: 0.72rem;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            opacity: 0.62;
-            font-weight: 700;
-        }
-        .terminal-lead {
-            max-width: 980px;
-            opacity: 0.78;
-            line-height: 1.6;
-        }
-        </style>
+        <header class="terminal-hero">
+            <div class="terminal-brand-row">
+                <span class="terminal-wordmark">CAKRAWALA</span>
+                <span class="terminal-edition">PUBLIC INTELLIGENCE</span>
+            </div>
+            <h1>Intelijen pasar yang bisa diperiksa, bukan sekadar dipercaya.</h1>
+            <p>
+                Market, macro, positioning, news, model, dan risk evidence disatukan
+                dalam satu alur kerja. Setiap kesimpulan tetap tunduk pada kualitas
+                sumber, freshness, dan safety gate.
+            </p>
+            <div class="terminal-principles" aria-label="Product principles">
+                <span>READ-ONLY</span>
+                <span>SUMBER TERLACAK</span>
+                <span>TANPA EKSEKUSI ORDER</span>
+            </div>
+        </header>
         """,
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        '<div class="terminal-kicker">Evidence first research terminal</div>',
-        unsafe_allow_html=True,
-    )
-    st.title("Cakrawala Intelligence Terminal")
-    st.markdown(
-        '<div class="terminal-lead">'
-        "News, macro, market structure, risk, dan tool research disatukan dalam "
-        "satu alur. Signal hanya dianggap valid setelah data, model, dan policy "
-        "lolos gate."
-        "</div>",
         unsafe_allow_html=True,
     )
 

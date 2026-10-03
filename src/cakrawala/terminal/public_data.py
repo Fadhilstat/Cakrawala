@@ -213,3 +213,6 @@ def public_snapshot() -> dict[str, Any]:
     _safe_load("calendar", load_economic_calendar, snapshot)
     _safe_load("cot", load_cot_context, snapshot)
     return snapshot
+
+
+public_snapshot = st.cache_data(ttl=300, show_spinner=False)(public_snapshot)

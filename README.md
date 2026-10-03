@@ -8,6 +8,11 @@ Cakrawala brings market, macro, positioning, event, model, and risk evidence int
 
 The Streamlit app is the public portfolio and education surface. Personal research is intentionally kept out of its navigation.
 
+The public interface uses a compact corporate terminal system with grouped navigation,
+visible source health, explicit runtime degradation, responsive mobile layouts, keyboard
+focus states, and reduced-motion support. The design keeps operational evidence ahead of
+decorative elements so users can understand the current state before reading an analysis.
+
 The Vercel deployment is kept for personal use and is protected inside the application with a username and password. Its URL is not part of the public portfolio. The password itself is never stored in the repository or environment as plaintext. Vercel receives only a Werkzeug-compatible password hash plus a separate session secret.
 
 ## Why this project exists
